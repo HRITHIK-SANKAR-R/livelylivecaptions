@@ -1,0 +1,65 @@
+Gemini.md
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+# Antigravity local state
+.agent/.cache/
+.agent/logs/
+.agent/tmp/
+
+# Gemini / local model state
+.gemini/.cache/
+# --- GSD ephemeral state ---
+.gsd/STATE.md
+.gsd/JOURNAL.md
+.gsd/SUMMARY.md
+.gsd/PLAN*.md
+.gsd/state_snapshots/
+.gsd/debug/
+.gsd/.cache/
+.gsd/token-usage.json
+.gsd/context-health.json
+
+# Go build output
+/bin/
+/dist/
+/build/
+
+# Go test artifacts
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+
+# Go workspace (if used locally)
+go.work.sum
+
