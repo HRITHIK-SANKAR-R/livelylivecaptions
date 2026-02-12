@@ -55,6 +55,7 @@ Thumbs.db
 # Go test artifacts
 *.test
 *.out
+testdata/
 
 # Coverage
 coverage.out

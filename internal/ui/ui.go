@@ -47,7 +47,7 @@ type model struct {
 	quitChan  chan<- struct{}
 }
 
-func initialModel(transChan <-chan types.TranscriptionEvent, levelChan <-chan types.AudioLevelMsg, quitChan chan<- struct{}) model {
+func InitialModel(transChan <-chan types.TranscriptionEvent, levelChan <-chan types.AudioLevelMsg, quitChan chan<- struct{}) model {
 	vp := viewport.New(width-16, height-2)
 	vp.SetContent("Waiting for speech...")
 	
