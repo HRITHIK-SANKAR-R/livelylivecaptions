@@ -7,9 +7,18 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 )
 
+// OnlineRecognizer defines the subset of Sherpa-ONNX methods used by Transcriber
+type OnlineRecognizer interface {
+	IsReady(s *sherpa.OnlineStream) bool
+	Decode(s *sherpa.OnlineStream)
+	GetResult(s *sherpa.OnlineStream) *sherpa.OnlineRecognizerResult
+	IsEndpoint(s *sherpa.OnlineStream) bool
+	Reset(s *sherpa.OnlineStream)
+}
+
 // Transcriber handles speech recognition
 type Transcriber struct {
-	recognizer *sherpa.OnlineRecognizer
+	recognizer OnlineRecognizer
 	stream     *sherpa.OnlineStream
 	InputChan  chan []byte
 	OutputChan chan types.TranscriptionEvent
@@ -62,6 +71,21 @@ func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
 	}, nil
 }
 
+// BytesToSamples converts raw int16 LE bytes to float32 samples.
+// It returns nil if the input is too small (less than 2 bytes).
+func BytesToSamples(audioData []byte) []float32 {
+	if len(audioData) < 2 {
+		return nil
+	}
+	samples := make([]float32, len(audioData)/2)
+	for i := 0; i < len(samples); i++ {
+		// Little-endian conversion
+		val := int16(uint16(audioData[2*i]) | uint16(audioData[2*i+1])<<8)
+		samples[i] = float32(val) / 32768.0
+	}
+	return samples
+}
+
 // Start begins processing audio from the input channel
 func (t *Transcriber) Start() {
 	go func() {
@@ -75,16 +99,9 @@ func (t *Transcriber) Start() {
 			case <-t.QuitChan:
 				return
 			case audioData := <-t.InputChan:
-				// Skip empty buffers
-				if len(audioData) < 2 {
+				samples := BytesToSamples(audioData)
+				if samples == nil {
 					continue
-				}
-				// Convert []byte (int16 LE) to []float32
-				samples := make([]float32, len(audioData)/2)
-				for i := 0; i < len(samples); i++ {
-					// Little-endian conversion
-					val := int16(uint16(audioData[2*i]) | uint16(audioData[2*i+1])<<8)
-					samples[i] = float32(val) / 32768.0
 				}
 
 				// Accept samples
@@ -99,7 +116,7 @@ func (t *Transcriber) Start() {
 				result := t.recognizer.GetResult(t.stream)
 				
 				// Only send if there's text (partial or final)
-				if len(result.Text) > 0 {
+				if result != nil && len(result.Text) > 0 {
 					event := types.TranscriptionEvent{
 						Text: result.Text,
 					}
@@ -122,6 +139,11 @@ func (t *Transcriber) Close() {
 		sherpa.DeleteOnlineStream(t.stream)
 	}
 	if t.recognizer != nil {
-		sherpa.DeleteOnlineRecognizer(t.recognizer)
+		// If it's the real recognizer, delete it using the Sherpa-ONNX deleter.
+		// Mocks won't need this step.
+		if r, ok := t.recognizer.(*sherpa.OnlineRecognizer); ok {
+			sherpa.DeleteOnlineRecognizer(r)
+		}
 	}
 }
+

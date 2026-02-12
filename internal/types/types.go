@@ -14,6 +14,9 @@ type AudioLevelMsg float64
 type AudioDevice interface {
 	Name() string
 	ID() interface{}
+	// Capture starts recording and sends raw bytes to audioChan.
+	// It should also calculate and send RMS levels to levelChan if provided.
+	Capture(audioChan chan<- []byte, levelChan chan<- AudioLevelMsg, quitChan <-chan struct{}) error
 }
 
 // AudioProvider defines the interface for audio capture engines (e.g., malgo)

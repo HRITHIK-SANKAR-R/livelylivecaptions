@@ -23,6 +23,73 @@ func (d MalgoDevice) ID() interface{} {
 	return d.Info.ID
 }
 
+// CalculateRMS computes the RMS value for a slice of raw int16 LE bytes.
+func CalculateRMS(audioData []byte) float64 {
+	var sumSquares float64
+	numSamples := len(audioData) / 2
+	for i := 0; i < numSamples; i++ {
+		val := int16(uint16(audioData[2*i]) | uint16(audioData[2*i+1])<<8)
+		normalized := float64(val) / 32768.0
+		sumSquares += normalized * normalized
+	}
+	if numSamples > 0 {
+		return math.Sqrt(sumSquares / float64(numSamples))
+	}
+	return 0.0
+}
+
+// Capture implements types.AudioDevice for MalgoDevice
+func (d MalgoDevice) Capture(audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}) error {
+	malgoCtx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = malgoCtx.Uninit()
+		malgoCtx.Free()
+	}()
+
+	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
+	deviceConfig.Capture.Format = malgo.FormatS16
+	deviceConfig.Capture.Channels = 1
+	deviceConfig.SampleRate = 16000
+	deviceConfig.Capture.DeviceID = d.Info.ID.Pointer()
+
+	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
+		sampleCopy := make([]byte, len(pSample))
+		copy(sampleCopy, pSample)
+		audioChan <- sampleCopy
+
+		rms := CalculateRMS(pSample)
+		if levelChan != nil {
+			select {
+			case levelChan <- types.AudioLevelMsg(rms):
+			default:
+			}
+		}
+	}
+
+	captureCallbacks := malgo.DeviceCallbacks{
+		Data: onRecvFrames,
+	}
+
+	device, err := malgo.InitDevice(malgoCtx.Context, deviceConfig, captureCallbacks)
+	if err != nil {
+		return err
+	}
+	defer device.Uninit()
+
+	err = device.Start()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Audio capture started on device: %s\n", d.Name())
+	<-quitChan
+	fmt.Printf("Audio capture stopped on device: %s\n", d.Name())
+	return nil
+}
+
 // MalgoProvider implements types.AudioProvider using the malgo library
 type MalgoProvider struct{}
 
@@ -62,102 +129,39 @@ func GetAudioDevices() ([]malgo.DeviceInfo, error) {
 	return ctx.Devices(malgo.Capture)
 }
 
-// CaptureAudio captures audio from a specified device and sends it to a channel.
+// CaptureAudio bridges the application state and the selected audio device.
+// It handles the start/stop logic based on appState.
 func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}, selectedDevice types.AudioDevice) {
-	// Initialize audio context
-	malgoCtx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer func() {
-		_ = malgoCtx.Uninit()
-		malgoCtx.Free()
-	}()
-
-	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
-	deviceConfig.Capture.Format = malgo.FormatS16
-	deviceConfig.Capture.Channels = 1
-	deviceConfig.SampleRate = 16000
-
-	// Handle ID casting back to malgo.DeviceID if it's a MalgoDevice
-	if md, ok := selectedDevice.(MalgoDevice); ok {
-		deviceConfig.Capture.DeviceID = md.Info.ID.Pointer()
-	} else if id, ok := selectedDevice.ID().(malgo.DeviceID); ok {
-		deviceConfig.Capture.DeviceID = id.Pointer()
-	}
-
-	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
-		// It's important to copy the sample data because the buffer will be reused by the audio driver.
-		sampleCopy := make([]byte, len(pSample))
-		copy(sampleCopy, pSample)
-		audioChan <- sampleCopy
-
-		// Calculate RMS
-		var sumSquares float64
-		numSamples := len(pSample) / 2
-		for i := 0; i < numSamples; i++ {
-			val := int16(uint16(pSample[2*i]) | uint16(pSample[2*i+1])<<8)
-			normalized := float64(val) / 32768.0
-			sumSquares += normalized * normalized
-		}
-		rms := 0.0
-		if numSamples > 0 {
-			rms = float64(math.Sqrt(sumSquares / float64(numSamples)))
-		}
-
-		if levelChan != nil {
-			select {
-			case levelChan <- types.AudioLevelMsg(rms):
-			default:
-				// Drop level update if channel is full to prevent blocking audio
-			}
-		}
-	}
-
-	captureCallbacks := malgo.DeviceCallbacks{
-		Data: onRecvFrames,
-	}
-
-	var device *malgo.Device
+	deviceQuitChan := make(chan struct{})
+	var deviceRunning bool
 
 	for {
 		select {
 		case <-quitChan:
-			fmt.Println("Stopping audio capture.")
-			if device != nil {
-				device.Uninit()
+			if deviceRunning {
+				close(deviceQuitChan)
 			}
 			return
 		default:
 			if appState.IsCapturing() {
-				if device == nil {
-					device, err = malgo.InitDevice(malgoCtx.Context, deviceConfig, captureCallbacks)
-					if err != nil {
-						fmt.Println(err)
-						// Stop capturing on error
-						appState.SetCapturing(false)
-						continue
-					}
-
-					err = device.Start()
-					if err != nil {
-						fmt.Println(err)
-						// Stop capturing on error
-						appState.SetCapturing(false)
-						continue
-					}
-					fmt.Println("Audio capture started.")
+				if !deviceRunning {
+					deviceRunning = true
+					deviceQuitChan = make(chan struct{})
+					go func() {
+						err := selectedDevice.Capture(audioChan, levelChan, deviceQuitChan)
+						if err != nil {
+							fmt.Println("Capture error:", err)
+							appState.SetCapturing(false)
+						}
+					}()
 				}
 			} else {
-				if device != nil {
-					device.Uninit()
-					device = nil
-					fmt.Println("Audio capture stopped.")
+				if deviceRunning {
+					close(deviceQuitChan)
+					deviceRunning = false
 				}
 			}
 		}
-		// Add a small sleep to prevent busy-waiting
 		time.Sleep(100 * time.Millisecond)
 	}
 }
