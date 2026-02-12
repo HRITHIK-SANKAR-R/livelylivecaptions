@@ -3,6 +3,8 @@ package audio
 import (
 	"fmt"
 	"livelylivecaptions/internal/state"
+	"livelylivecaptions/internal/types"
+	"math"
 	"time"
 
 	"github.com/gen2brain/malgo"
@@ -23,7 +25,7 @@ func GetAudioDevices() ([]malgo.DeviceInfo, error) {
 }
 
 // CaptureAudio captures audio from a specified device and sends it to a channel.
-func CaptureAudio(appState *state.State, audioChan chan<- []byte, quitChan <-chan struct{}, selectedDevice malgo.DeviceInfo) {
+func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}, selectedDevice malgo.DeviceInfo) {
 	// Initialize audio context
 	malgoCtx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
 	if err != nil {
@@ -41,11 +43,38 @@ func CaptureAudio(appState *state.State, audioChan chan<- []byte, quitChan <-cha
 	deviceConfig.SampleRate = 16000
 	deviceConfig.Capture.DeviceID = selectedDevice.ID.Pointer()
 
+	var frameCount uint32 = 0
 	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
 		// It's important to copy the sample data because the buffer will be reused by the audio driver.
 		sampleCopy := make([]byte, len(pSample))
 		copy(sampleCopy, pSample)
 		audioChan <- sampleCopy
+
+		// Calculate RMS
+		var sumSquares float64
+		numSamples := len(pSample) / 2
+		for i := 0; i < numSamples; i++ {
+			val := int16(uint16(pSample[2*i]) | uint16(pSample[2*i+1])<<8)
+			normalized := float64(val) / 32768.0
+			sumSquares += normalized * normalized
+		}
+		rms := 0.0
+		if numSamples > 0 {
+			rms = float64(math.Sqrt(sumSquares / float64(numSamples)))
+		}
+		// Debug: Print RMS every 10th frame to avoid spam
+		if frameCount%10 == 0 {
+			fmt.Printf("RMS: %.4f\n", rms)
+		}
+		frameCount++
+		
+		if levelChan != nil {
+			select {
+			case levelChan <- types.AudioLevelMsg(rms):
+			default:
+				// Drop level update if channel is full to prevent blocking audio
+			}
+		}
 	}
 
 	captureCallbacks := malgo.DeviceCallbacks{
