@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"livelylivecaptions/internal/audio"
 	"livelylivecaptions/internal/state"
 	"livelylivecaptions/internal/transcriber"
+	"livelylivecaptions/internal/types"
 	"livelylivecaptions/internal/ui"
 	"os"
-	"os/signal"
 )
 
 func main() {
@@ -50,40 +49,32 @@ func main() {
 	// Create channels
 	micAudioChan := tr.InputChan
 	uiUpdateChan := tr.OutputChan
+	levelChan := make(chan types.AudioLevelMsg, 60) // Buffer for 60fps
 	quitChan := make(chan struct{})
 
 	fmt.Println("Channels created")
 
+	// Enable audio capturing
+	appState.SetCapturing(true)
+
 	// Start audio capture
-	go audio.CaptureAudio(appState, micAudioChan, quitChan, selectedDevice)
+	go audio.CaptureAudio(appState, micAudioChan, levelChan, quitChan, selectedDevice)
 
 	// Start transcriber
 	tr.Start()
 
 	// Start UI updater
-	go ui.UpdateUI(uiUpdateChan, quitChan)
+	// We'll replace this with the Bubble Tea program in the next step, 
+	// but keeping the signature compatible for now or removing if we switch to full TUI immediately.
+	// For this step, let's comment out the old UI updater as we are about to replace it.
+	// go ui.UpdateUI(uiUpdateChan, quitChan)
+    
+    // Initialize and run Bubble Tea program
+    if err := ui.RunProgram(uiUpdateChan, levelChan, quitChan); err != nil {
+        fmt.Printf("Error running UI: %v\n", err)
+        os.Exit(1)
+    }
 
-	// Handle graceful shutdown
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, os.Interrupt)
-		<-sigs
-		fmt.Println("Shutdown signal received")
-		close(quitChan)
-		close(tr.QuitChan)
-	}()
-
-	// Interactive toggle for capturing
-	fmt.Println("Press Enter to start/stop captioning.")
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		appState.SetCapturing(!appState.IsCapturing())
-		if appState.IsCapturing() {
-			fmt.Println("Starting captioning...")
-		} else {
-			fmt.Println("Stopping captioning...")
-		}
-	}
-
-	fmt.Println("Application shutting down")
+	// Cleanup after UI exits
+	fmt.Println("\nShutting down gracefully...")
 }
