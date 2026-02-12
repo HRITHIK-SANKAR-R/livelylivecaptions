@@ -43,7 +43,6 @@ func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan
 	deviceConfig.SampleRate = 16000
 	deviceConfig.Capture.DeviceID = selectedDevice.ID.Pointer()
 
-	var frameCount uint32 = 0
 	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
 		// It's important to copy the sample data because the buffer will be reused by the audio driver.
 		sampleCopy := make([]byte, len(pSample))
@@ -62,12 +61,7 @@ func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan
 		if numSamples > 0 {
 			rms = float64(math.Sqrt(sumSquares / float64(numSamples)))
 		}
-		// Debug: Print RMS every 10th frame to avoid spam
-		if frameCount%10 == 0 {
-			fmt.Printf("RMS: %.4f\n", rms)
-		}
-		frameCount++
-		
+
 		if levelChan != nil {
 			select {
 			case levelChan <- types.AudioLevelMsg(rms):
