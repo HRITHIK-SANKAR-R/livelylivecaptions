@@ -38,7 +38,7 @@ func CaptureAudio(appState *state.State, audioChan chan<- []byte, quitChan <-cha
 	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
 	deviceConfig.Capture.Format = malgo.FormatS16
 	deviceConfig.Capture.Channels = 1
-	deviceConfig.SampleRate = 44100
+	deviceConfig.SampleRate = 16000
 	deviceConfig.Capture.DeviceID = selectedDevice.ID.Pointer()
 
 	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {

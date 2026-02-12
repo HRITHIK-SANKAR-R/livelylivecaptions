@@ -4,9 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"livelylivecaptions/internal/audio"
-	"livelylivecaptions/internal/multiplexer"
-	"livelylivecaptions/internal/network"
 	"livelylivecaptions/internal/state"
+	"livelylivecaptions/internal/transcriber"
 	"livelylivecaptions/internal/ui"
 	"os"
 	"os/signal"
@@ -18,8 +17,7 @@ func main() {
 	fmt.Println("Application state initialized")
 
 	// Get audio devices
-
-devices, err := audio.GetAudioDevices()
+	devices, err := audio.GetAudioDevices()
 	if err != nil {
 		fmt.Println("Failed to get audio devices:", err)
 		return
@@ -40,13 +38,18 @@ devices, err := audio.GetAudioDevices()
 
 	selectedDevice := devices[selectedDeviceIndex]
 
-	// Create channels
+	// Initialize Transcriber
+	tr, err := transcriber.NewTranscriber()
+	if err != nil {
+		fmt.Printf("Failed to initialize transcriber: %v\n", err)
+		return
+	}
+	defer tr.Close()
+	fmt.Println("Transcriber initialized (Sherpa-ONNX)")
 
-	micAudioChan := make(chan []byte)
-	systemAudioChan := make(chan []byte)
-	webSocketOutgoingChan := make(chan []byte, 100) // Buffered channel
-	webSocketIncomingChan := make(chan string)
-	uiUpdateChan := make(chan string)
+	// Create channels
+	micAudioChan := tr.InputChan
+	uiUpdateChan := tr.OutputChan
 	quitChan := make(chan struct{})
 
 	fmt.Println("Channels created")
@@ -54,29 +57,20 @@ devices, err := audio.GetAudioDevices()
 	// Start audio capture
 	go audio.CaptureAudio(appState, micAudioChan, quitChan, selectedDevice)
 
-	// Start network communication
-	go network.ManageWebSocket(webSocketOutgoingChan, webSocketIncomingChan, quitChan)
-
-	// Start audio multiplexer
-	go multiplexer.MultiplexAudio(micAudioChan, systemAudioChan, webSocketOutgoingChan, quitChan)
+	// Start transcriber
+	tr.Start()
 
 	// Start UI updater
 	go ui.UpdateUI(uiUpdateChan, quitChan)
 
-	// Forward captions from network to UI
-	go func() {
-		for caption := range webSocketIncomingChan {
-			uiUpdateChan <- caption
-		}
-	}()
-
-	// Handle graceful shutdown in a separate goroutine
+	// Handle graceful shutdown
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, os.Interrupt)
 		<-sigs
 		fmt.Println("Shutdown signal received")
 		close(quitChan)
+		close(tr.QuitChan)
 	}()
 
 	// Interactive toggle for capturing
