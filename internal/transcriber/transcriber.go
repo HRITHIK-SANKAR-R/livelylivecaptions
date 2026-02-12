@@ -2,6 +2,7 @@ package transcriber
 
 import (
 	"fmt"
+	"livelylivecaptions/internal/types"
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 )
 
@@ -10,7 +11,7 @@ type Transcriber struct {
 	recognizer *sherpa.OnlineRecognizer
 	stream     *sherpa.OnlineStream
 	InputChan  chan []byte
-	OutputChan chan string
+	OutputChan chan types.TranscriptionEvent
 	QuitChan   chan struct{}
 }
 
@@ -25,11 +26,11 @@ func NewTranscriber() (*Transcriber, error) {
 		},
 		ModelConfig: sherpa.OnlineModelConfig{
 			Transducer: sherpa.OnlineTransducerModelConfig{
-				Encoder: "./models/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-				Decoder: "./models/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
-				Joiner:  "./models/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+				Encoder: "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/encoder-epoch-99-avg-1.onnx",
+				Decoder: "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/decoder-epoch-99-avg-1.onnx",
+				Joiner:  "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/joiner-epoch-99-avg-1.onnx",
 			},
-			Tokens:     "./models/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
+			Tokens:     "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/tokens.txt",
 			NumThreads: 1,
 			Debug:      0,
 			ModelType:  "zipformer",
@@ -53,7 +54,7 @@ func NewTranscriber() (*Transcriber, error) {
 		recognizer: recognizer,
 		stream:     stream,
 		InputChan:  make(chan []byte, 10), // Buffered to prevent blocking audio capture
-		OutputChan: make(chan string),
+		OutputChan: make(chan types.TranscriptionEvent),
 		QuitChan:   make(chan struct{}),
 	}, nil
 }
@@ -71,6 +72,10 @@ func (t *Transcriber) Start() {
 			case <-t.QuitChan:
 				return
 			case audioData := <-t.InputChan:
+				// Skip empty buffers
+				if len(audioData) < 2 {
+					continue
+				}
 				// Convert []byte (int16 LE) to []float32
 				samples := make([]float32, len(audioData)/2)
 				for i := 0; i < len(samples); i++ {
@@ -92,14 +97,16 @@ func (t *Transcriber) Start() {
 				
 				// Only send if there's text (partial or final)
 				if len(result.Text) > 0 {
-					msg := fmt.Sprintf("%s", result.Text)
+					event := types.TranscriptionEvent{
+						Text: result.Text,
+					}
+					
 					if t.recognizer.IsEndpoint(t.stream) {
 						t.recognizer.Reset(t.stream)
-						msg = fmt.Sprintf("[FINAL] %s", msg)
-					} else {
-						msg = fmt.Sprintf("[PARTIAL] %s", msg)
+						event.IsFinal = true
 					}
-					t.OutputChan <- msg
+					
+					t.OutputChan <- event
 				}
 			}
 		}
