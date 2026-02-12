@@ -22,7 +22,8 @@
 - [ ] Integration: Ensure `main.go` wires Audio -> Transcriber -> UI correctly.
 
 ### Phase 2: UI & Optimization
-**Status**: ⬜ Not Started
+**Status**: ✅ Completed
+**Objective**: Build TUI and optimize performance
 **Objective**: Build TUI and optimize performance
 **Deliverable**: Functional TUI with live transcription and audio visualization.
 **Tasks**:
