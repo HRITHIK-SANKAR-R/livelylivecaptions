@@ -27,14 +27,9 @@ func DetectBestProvider() Provider {
 
 // GetModelPaths returns the appropriate model paths based on the provider
 func GetModelPaths(p Provider) (encoder, decoder, joiner, tokens string) {
-	if p == ProviderCUDA {
-		return "./models/gpu/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
-			"./models/gpu/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
-			"./models/gpu/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx",
-			"./models/gpu/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt"
-	}
-
-	// Default to CPU model
+	// We use the CPU model files (2023-02-17) for both modes because they
+	// contain the 'attention_dims' metadata required by the v1.12 engine.
+	// The larger GPU model files are missing this metadata.
 	return "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/encoder-epoch-99-avg-1.onnx",
 		"./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/decoder-epoch-99-avg-1.onnx",
 		"./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/joiner-epoch-99-avg-1.onnx",
