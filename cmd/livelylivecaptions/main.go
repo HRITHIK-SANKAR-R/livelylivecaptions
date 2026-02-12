@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"livelylivecaptions/internal/audio"
 	"livelylivecaptions/internal/hardware"
+	"livelylivecaptions/internal/logger"
 	"livelylivecaptions/internal/transcriber"
 	"livelylivecaptions/internal/types"
 	"livelylivecaptions/internal/ui"
@@ -38,9 +39,9 @@ func main() {
 	// Read from config file (middle priority)
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Println("No config.yaml found, using defaults and environment variables.")
+			logger.Info("No config.yaml found, using defaults and environment variables.")
 		} else {
-			fmt.Printf("Error reading config file: %v\n", err)
+			logger.Error("Error reading config file: %v", err)
 			os.Exit(1)
 		}
 	}
@@ -67,9 +68,12 @@ func main() {
 	// Unmarshal config into AppConfig struct
 	var cfg types.AppConfig
 	if err := v.Unmarshal(&cfg); err != nil {
-		fmt.Printf("Error unmarshalling config: %v\n", err)
+		fmt.Printf("Error unmarshalling config: %v\n", err) // Keep direct print for config unmarshal error
 		os.Exit(1)
 	}
+
+	// Initialize global logger after config is unmarshaled
+	logger.InitGlobalLogger(cfg.Log)
 
 	// Determine compute provider based on resolved config
 	var provider hardware.Provider
@@ -82,24 +86,24 @@ func main() {
 		provider = hardware.DetectBestProvider()
 	}
 
-	fmt.Printf("Compute provider: %s\n", provider)
+	logger.Info("Compute provider: %s", provider)
 
 	// Log a warning if GPU was requested but CPU is being used
 	if requestedGPU && provider == hardware.ProviderCPU {
-		fmt.Println("Warning: GPU (CUDA) was requested but not detected/available. Falling back to CPU provider.")
+		logger.Warn("GPU (CUDA) was requested but not detected/available. Falling back to CPU provider.")
 	}
 
 	// Get audio devices using the new Provider interface
 	audioProvider := audio.MalgoProvider{}
 	devices, err := audioProvider.GetDevices()
 	if err != nil {
-		fmt.Println("Failed to get audio devices:", err)
+		logger.Error("Failed to get audio devices: %v", err)
 		return
 	}
 
-	fmt.Println("Available audio devices:")
+	logger.Info("Available audio devices:")
 	for i, device := range devices {
-		fmt.Printf("%d: %s\n", i, device.Name())
+		logger.Info("%d: %s (ID: %v)", i, device.Name(), device.ID())
 	}
 
 	// Use device_id from config or prompt if not set
@@ -108,26 +112,26 @@ func main() {
 		found := false
 		for _, device := range devices {
 			// Compare by Name or ID
-			if device.ID() == cfg.Audio.DeviceID || device.Name() == cfg.Audio.DeviceID {
+			if fmt.Sprintf("%v", device.ID()) == cfg.Audio.DeviceID || device.Name() == cfg.Audio.DeviceID {
 				selectedDevice = device
 				found = true
 				break
 			}
 		}
 		if !found {
-			fmt.Printf("Configured audio device '%s' not found. Please select from available devices.\n", cfg.Audio.DeviceID)
+			logger.Warn("Configured audio device '%s' not found. Please select from available devices.", cfg.Audio.DeviceID)
 			// Fall through to interactive selection if not found
 		} else {
-			fmt.Printf("Using configured audio device: %s (ID: %v)\n", selectedDevice.Name(), selectedDevice.ID())
+			logger.Info("Using configured audio device: %s (ID: %v)", selectedDevice.Name(), selectedDevice.ID())
 		}
 	}
 
 	if selectedDevice == nil { // If no device selected by config or not found
-		fmt.Print("Select a device: ")
+		fmt.Print("Select a device: ") // Keep fmt.Print for user input prompt
 		var selectedDeviceIndex int
 		_, err = fmt.Scanln(&selectedDeviceIndex)
 		if err != nil || selectedDeviceIndex < 0 || selectedDeviceIndex >= len(devices) {
-			fmt.Println("Invalid selection.")
+			logger.Error("Invalid selection. Exiting.")
 			return
 		}
 		selectedDevice = devices[selectedDeviceIndex]
@@ -136,7 +140,7 @@ func main() {
     // Start the selected audio device
     err = selectedDevice.Start()
     if err != nil {
-        fmt.Printf("Failed to start audio device: %v\n", err)
+        logger.Error("Failed to start audio device: %v", err)
         return
     }
     defer selectedDevice.Close() // Ensure device is closed on exit
@@ -144,11 +148,11 @@ func main() {
 	// Initialize Transcriber
 	tr, err := transcriber.NewTranscriber(provider)
 	if err != nil {
-		fmt.Printf("Failed to initialize transcriber: %v\n", err)
+		logger.Error("Failed to initialize transcriber: %v", err)
 		return
 	}
 	defer tr.Close()
-	fmt.Println("Transcriber initialized (Sherpa-ONNX)")
+	logger.Info("Transcriber initialized (Sherpa-ONNX)")
 
 	// Create channels
 	micAudioChan := tr.InputChan
@@ -156,7 +160,7 @@ func main() {
 	levelChan := make(chan types.AudioLevelMsg, 60) // Buffer for 60fps
 	quitChan := make(chan struct{})
 
-	fmt.Println("Channels created")
+	logger.Info("Channels created")
 
 	// Start audio capture goroutine using the new AudioDevice interface
 	go func() {
@@ -170,7 +174,7 @@ func main() {
 			default:
 				audioData, err := selectedDevice.Read()
 				if err != nil {
-					fmt.Printf("Error reading from audio device: %v\n", err)
+					logger.Error("Error reading from audio device: %v", err)
 					return // Exit goroutine on error
 				}
 				
@@ -198,10 +202,10 @@ func main() {
 
     // Initialize and run Bubble Tea program
     if err := ui.RunProgram(uiUpdateChan, levelChan, quitChan); err != nil {
-        fmt.Printf("Error running UI: %v\n", err)
+        logger.Error("Error running UI: %v", err)
         os.Exit(1)
     }
 
 	// Cleanup after UI exits
-	fmt.Println("\nShutting down gracefully...")
+	logger.Info("Shutting down gracefully...")
 }

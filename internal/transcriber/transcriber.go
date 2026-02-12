@@ -3,6 +3,7 @@ package transcriber
 import (
 	"fmt"
 	"livelylivecaptions/internal/hardware"
+	"livelylivecaptions/internal/logger" // Added import
 	"livelylivecaptions/internal/types"
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 )
@@ -61,6 +62,8 @@ func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
 	if stream == nil {
 		return nil, fmt.Errorf("failed to create stream")
 	}
+
+	logger.Info("Sherpa-ONNX transcriber initialized with provider: %s", p) // Added logger info
 
 	return &Transcriber{
 		recognizer: recognizer,

@@ -2,6 +2,7 @@ package audio
 
 import (
 	"fmt"
+	"livelylivecaptions/internal/logger" // Added import
 	"livelylivecaptions/internal/types"
 	"math"
 	"sync"
@@ -67,7 +68,7 @@ func (d *MalgoDevice) Start() error {
 		case d.audioBuffer <- sampleCopy:
 		default:
 			// Drop frame if buffer is full to avoid blocking audio callback
-			// fmt.Println("Warning: Audio buffer full, dropping frame.")
+			// logger.Warn("Audio buffer full, dropping frame.") // Use logger here if desired
 		}
 	}
 
@@ -92,7 +93,7 @@ func (d *MalgoDevice) Start() error {
 		return fmt.Errorf("failed to start malgo device: %w", err)
 	}
 
-	fmt.Printf("Audio capture started on device: %s (ID: %v)\n", d.Name(), d.ID())
+	logger.Info("Audio capture started on device: %s (ID: %v)", d.Name(), d.ID()) // Changed
 	return nil
 }
 
@@ -136,7 +137,7 @@ func (d *MalgoDevice) Close() error {
 		d.context.Free()
 		d.context = nil
 	}
-	fmt.Printf("Audio capture stopped on device: %s (ID: %v)\n", d.Name(), d.ID())
+	logger.Info("Audio capture stopped on device: %s (ID: %v)", d.Name(), d.ID()) // Changed
 	return nil
 }
 

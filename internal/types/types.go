@@ -53,3 +53,10 @@ type AppConfig struct {
 	} `mapstructure:"debug"`
 	// Additional configuration fields can be added here
 }
+
+// LogConfig mirrors the structure of AppConfig.Log for passing log-specific settings.
+type LogConfig struct {
+	ToMemory bool `mapstructure:"to_memory"` // Log to in-memory ring buffer for UI display
+	FilePath string `mapstructure:"file_path"` // Path to log file
+	Level    string `mapstructure:"level"`     // info, debug, warn, error
+}
