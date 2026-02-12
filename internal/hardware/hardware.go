@@ -2,7 +2,6 @@ package hardware
 
 import (
 	"os/exec"
-	"strings"
 )
 
 // Provider represents the compute provider for Sherpa-ONNX

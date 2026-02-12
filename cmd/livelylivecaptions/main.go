@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"livelylivecaptions/internal/audio"
+	"livelylivecaptions/internal/hardware"
 	"livelylivecaptions/internal/state"
 	"livelylivecaptions/internal/transcriber"
 	"livelylivecaptions/internal/types"
@@ -11,9 +13,25 @@ import (
 )
 
 func main() {
+	// Parse CLI flags
+	useCPU := flag.Bool("cpu", false, "Force CPU usage")
+	useGPU := flag.Bool("gpu", false, "Force GPU (CUDA) usage")
+	flag.Parse()
+
 	// Initialize the application state
 	appState := state.NewState()
 	fmt.Println("Application state initialized")
+
+	// Determine compute provider
+	var provider hardware.Provider
+	if *useGPU {
+		provider = hardware.ProviderCUDA
+	} else if *useCPU {
+		provider = hardware.ProviderCPU
+	} else {
+		provider = hardware.DetectBestProvider()
+	}
+	fmt.Printf("Compute provider: %s\n", provider)
 
 	// Get audio devices
 	devices, err := audio.GetAudioDevices()
@@ -38,7 +56,7 @@ func main() {
 	selectedDevice := devices[selectedDeviceIndex]
 
 	// Initialize Transcriber
-	tr, err := transcriber.NewTranscriber()
+	tr, err := transcriber.NewTranscriber(provider)
 	if err != nil {
 		fmt.Printf("Failed to initialize transcriber: %v\n", err)
 		return
