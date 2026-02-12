@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"livelylivecaptions/internal/audio"
 	"livelylivecaptions/internal/hardware"
-	"livelylivecaptions/internal/state"
 	"livelylivecaptions/internal/transcriber"
 	"livelylivecaptions/internal/types"
 	"livelylivecaptions/internal/ui"
 	"os"
+	"time" // Added for time.Sleep
 )
 
 func main() {
@@ -18,9 +18,8 @@ func main() {
 	useGPU := flag.Bool("gpu", false, "Force GPU (CUDA) usage")
 	flag.Parse()
 
-	// Initialize the application state
-	appState := state.NewState()
-	fmt.Println("Application state initialized")
+	// Initialize the application state - appState is no longer directly used for capture control
+	// appState := state.NewState() // Removed
 
 	// Determine compute provider
 	var provider hardware.Provider
@@ -34,7 +33,7 @@ func main() {
 	fmt.Printf("Compute provider: %s\n", provider)
 
 	// Get audio devices using the new Provider interface
-	audioProvider := audio.MalgoProvider{}
+	audioProvider := audio.MalgoProvider{} // Use the MalgoProvider
 	devices, err := audioProvider.GetDevices()
 	if err != nil {
 		fmt.Println("Failed to get audio devices:", err)
@@ -55,6 +54,14 @@ func main() {
 	}
 
 	selectedDevice := devices[selectedDeviceIndex]
+    
+    // Start the selected audio device
+    err = selectedDevice.Start()
+    if err != nil {
+        fmt.Printf("Failed to start audio device: %v\n", err)
+        return
+    }
+    defer selectedDevice.Close() // Ensure device is closed on exit
 
 	// Initialize Transcriber
 	tr, err := transcriber.NewTranscriber(provider)
@@ -73,21 +80,44 @@ func main() {
 
 	fmt.Println("Channels created")
 
-	// Enable audio capturing
-	appState.SetCapturing(true)
+	// Start audio capture goroutine using the new AudioDevice interface
+	go func() {
+		defer close(micAudioChan) // Close the input channel when audio capture stops
+        defer close(levelChan)    // Close level channel as well
 
-	// Start audio capture
-	go audio.CaptureAudio(appState, micAudioChan, levelChan, quitChan, selectedDevice)
+		for {
+			select {
+			case <-quitChan:
+				return
+			default:
+				audioData, err := selectedDevice.Read()
+				if err != nil {
+					fmt.Printf("Error reading from audio device: %v\n", err)
+					return // Exit goroutine on error
+				}
+				
+				if audioData == nil {
+					// No data yet, wait a bit to prevent busy-looping
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+
+				// Send audio data to transcriber
+				micAudioChan <- audioData
+
+				// Calculate and send RMS level
+				rms := audio.CalculateRMS(audioData)
+				select {
+				case levelChan <- types.AudioLevelMsg(rms):
+				default: // Non-blocking send to levelChan
+				}
+			}
+		}
+	}()
 
 	// Start transcriber
 	tr.Start()
 
-	// Start UI updater
-	// We'll replace this with the Bubble Tea program in the next step, 
-	// but keeping the signature compatible for now or removing if we switch to full TUI immediately.
-	// For this step, let's comment out the old UI updater as we are about to replace it.
-	// go ui.UpdateUI(uiUpdateChan, quitChan)
-    
     // Initialize and run Bubble Tea program
     if err := ui.RunProgram(uiUpdateChan, levelChan, quitChan); err != nil {
         fmt.Printf("Error running UI: %v\n", err)

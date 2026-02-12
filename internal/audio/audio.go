@@ -2,25 +2,142 @@ package audio
 
 import (
 	"fmt"
-	"livelylivecaptions/internal/state"
 	"livelylivecaptions/internal/types"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/gen2brain/malgo"
 )
 
-// MalgoDevice wraps malgo.DeviceInfo to implement types.AudioDevice
+// MalgoDevice implements types.AudioDevice using the malgo library.
+// It wraps malgo.DeviceInfo and manages the underlying malgo device context.
 type MalgoDevice struct {
-	Info malgo.DeviceInfo
+	Info        malgo.DeviceInfo
+	device      *malgo.Device
+	context     *malgo.Context
+	audioBuffer chan []byte    // Channel to push audio frames from malgo callback to Read()
+	quitRead    chan struct{}  // Signal to stop the internal goroutine feeding audioBuffer
+	bufferMutex sync.Mutex     // Protects access to audioBuffer and related state
+	isCapturing bool           // Tracks if the device is actively capturing
 }
 
-func (d MalgoDevice) Name() string {
+// Name returns the name of the malgo device.
+func (d *MalgoDevice) Name() string {
 	return d.Info.Name()
 }
 
-func (d MalgoDevice) ID() interface{} {
+// ID returns the ID of the malgo device.
+func (d *MalgoDevice) ID() interface{} {
 	return d.Info.ID
+}
+
+// Start initializes and starts the malgo audio capture device.
+func (d *MalgoDevice) Start() error {
+	d.bufferMutex.Lock()
+	if d.isCapturing {
+		d.bufferMutex.Unlock()
+		return fmt.Errorf("malgo device already started")
+	}
+	d.isCapturing = true
+	d.audioBuffer = make(chan []byte, 100) // Buffered channel for audio frames
+	d.quitRead = make(chan struct{})
+	d.bufferMutex.Unlock()
+
+	var err error
+	d.context, err = malgo.InitContext(nil, malgo.ContextConfig{}, nil)
+	if err != nil {
+		d.isCapturing = false
+		return fmt.Errorf("failed to initialize malgo context: %w", err)
+	}
+
+	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
+	deviceConfig.Capture.Format = malgo.FormatS16 // 16-bit signed integer
+	deviceConfig.Capture.Channels = 1             // Mono
+	deviceConfig.SampleRate = 16000               // 16 kHz sample rate
+	deviceConfig.Capture.DeviceID = d.Info.ID.Pointer()
+
+	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
+		if !d.isCapturing {
+			return
+		}
+		sampleCopy := make([]byte, len(pSample))
+		copy(sampleCopy, pSample)
+		select {
+		case d.audioBuffer <- sampleCopy:
+		default:
+			// Drop frame if buffer is full to avoid blocking audio callback
+			// fmt.Println("Warning: Audio buffer full, dropping frame.")
+		}
+	}
+
+	captureCallbacks := malgo.DeviceCallbacks{
+		Data: onRecvFrames,
+	}
+
+	d.device, err = malgo.InitDevice(d.context.Context, deviceConfig, captureCallbacks)
+	if err != nil {
+		d.context.Uninit()
+		d.context.Free()
+		d.isCapturing = false
+		return fmt.Errorf("failed to initialize malgo device: %w", err)
+	}
+
+	err = d.device.Start()
+	if err != nil {
+		d.device.Uninit()
+		d.context.Uninit()
+		d.context.Free()
+		d.isCapturing = false
+		return fmt.Errorf("failed to start malgo device: %w", err)
+	}
+
+	fmt.Printf("Audio capture started on device: %s (ID: %v)\n", d.Name(), d.ID())
+	return nil
+}
+
+// Read reads a chunk of audio data from the device.
+// It blocks until data is available or the device is closed.
+func (d *MalgoDevice) Read() ([]byte, error) {
+	select {
+	case <-d.quitRead:
+		return nil, fmt.Errorf("malgo device closed")
+	case frame := <-d.audioBuffer:
+		return frame, nil
+	case <-time.After(100 * time.Millisecond): // Timeout for reading
+		// If no data comes in a while, check if capturing is still true
+		d.bufferMutex.Lock()
+		capturing := d.isCapturing
+		d.bufferMutex.Unlock()
+		if !capturing {
+			return nil, fmt.Errorf("malgo device not capturing")
+		}
+		return nil, nil // Return nil, nil to indicate no data yet, but still capturing
+	}
+}
+
+// Close stops the malgo audio capture device and cleans up resources.
+func (d *MalgoDevice) Close() error {
+	d.bufferMutex.Lock()
+	if !d.isCapturing {
+		d.bufferMutex.Unlock()
+		return fmt.Errorf("malgo device not capturing or already closed")
+	}
+	d.isCapturing = false
+	close(d.quitRead) // Signal Read() to stop blocking
+	d.bufferMutex.Unlock()
+
+	if d.device != nil {
+		d.device.Uninit()
+		d.device = nil
+	}
+	if d.context != nil {
+		d.context.Uninit()
+		d.context.Free()
+		d.context = nil
+	}
+	fmt.Printf("Audio capture stopped on device: %s (ID: %v)\n", d.Name(), d.ID())
+	return nil
 }
 
 // CalculateRMS computes the RMS value for a slice of raw int16 LE bytes.
@@ -36,58 +153,6 @@ func CalculateRMS(audioData []byte) float64 {
 		return math.Sqrt(sumSquares / float64(numSamples))
 	}
 	return 0.0
-}
-
-// Capture implements types.AudioDevice for MalgoDevice
-func (d MalgoDevice) Capture(audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}) error {
-	malgoCtx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = malgoCtx.Uninit()
-		malgoCtx.Free()
-	}()
-
-	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
-	deviceConfig.Capture.Format = malgo.FormatS16
-	deviceConfig.Capture.Channels = 1
-	deviceConfig.SampleRate = 16000
-	deviceConfig.Capture.DeviceID = d.Info.ID.Pointer()
-
-	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
-		sampleCopy := make([]byte, len(pSample))
-		copy(sampleCopy, pSample)
-		audioChan <- sampleCopy
-
-		rms := CalculateRMS(pSample)
-		if levelChan != nil {
-			select {
-			case levelChan <- types.AudioLevelMsg(rms):
-			default:
-			}
-		}
-	}
-
-	captureCallbacks := malgo.DeviceCallbacks{
-		Data: onRecvFrames,
-	}
-
-	device, err := malgo.InitDevice(malgoCtx.Context, deviceConfig, captureCallbacks)
-	if err != nil {
-		return err
-	}
-	defer device.Uninit()
-
-	err = device.Start()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Audio capture started on device: %s\n", d.Name())
-	<-quitChan
-	fmt.Printf("Audio capture stopped on device: %s\n", d.Name())
-	return nil
 }
 
 // MalgoProvider implements types.AudioProvider using the malgo library
@@ -110,58 +175,8 @@ func (p MalgoProvider) GetDevices() ([]types.AudioDevice, error) {
 
 	wrapped := make([]types.AudioDevice, len(devices))
 	for i, d := range devices {
-		wrapped[i] = MalgoDevice{Info: d}
+		// Return MalgoDevice pointers as types.AudioDevice
+		wrapped[i] = &MalgoDevice{Info: d} 
 	}
 	return wrapped, nil
-}
-
-// GetAudioDevices is a legacy helper (optional, can be removed if all callers updated)
-func GetAudioDevices() ([]malgo.DeviceInfo, error) {
-	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = ctx.Uninit()
-		ctx.Free()
-	}()
-
-	return ctx.Devices(malgo.Capture)
-}
-
-// CaptureAudio bridges the application state and the selected audio device.
-// It handles the start/stop logic based on appState.
-func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}, selectedDevice types.AudioDevice) {
-	deviceQuitChan := make(chan struct{})
-	var deviceRunning bool
-
-	for {
-		select {
-		case <-quitChan:
-			if deviceRunning {
-				close(deviceQuitChan)
-			}
-			return
-		default:
-			if appState.IsCapturing() {
-				if !deviceRunning {
-					deviceRunning = true
-					deviceQuitChan = make(chan struct{})
-					go func() {
-						err := selectedDevice.Capture(audioChan, levelChan, deviceQuitChan)
-						if err != nil {
-							fmt.Println("Capture error:", err)
-							appState.SetCapturing(false)
-						}
-					}()
-				}
-			} else {
-				if deviceRunning {
-					close(deviceQuitChan)
-					deviceRunning = false
-				}
-			}
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
 }
