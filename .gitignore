@@ -63,4 +63,4 @@ coverage.html
 # Go workspace (if used locally)
 go.work.sum
 models/
-livelyivecaptions
+livelylivecaptions
