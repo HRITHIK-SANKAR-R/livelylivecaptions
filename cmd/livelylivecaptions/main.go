@@ -23,7 +23,8 @@ func main() {
 
 	// Determine compute provider
 	var provider hardware.Provider
-	if *useGPU {
+	requestedGPU := *useGPU // Store the initial request
+	if requestedGPU {
 		provider = hardware.ProviderCUDA
 	} else if *useCPU {
 		provider = hardware.ProviderCPU
@@ -31,6 +32,11 @@ func main() {
 		provider = hardware.DetectBestProvider()
 	}
 	fmt.Printf("Compute provider: %s\n", provider)
+
+	// Log a warning if GPU was requested but CPU is being used
+	if requestedGPU && provider == hardware.ProviderCPU {
+		fmt.Println("Warning: GPU (CUDA) was requested but not detected/available. Falling back to CPU provider.")
+	}
 
 	// Get audio devices using the new Provider interface
 	audioProvider := audio.MalgoProvider{} // Use the MalgoProvider
