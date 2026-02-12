@@ -10,7 +10,45 @@ import (
 	"github.com/gen2brain/malgo"
 )
 
-// GetAudioDevices enumerates the available audio capture devices.
+// MalgoDevice wraps malgo.DeviceInfo to implement types.AudioDevice
+type MalgoDevice struct {
+	Info malgo.DeviceInfo
+}
+
+func (d MalgoDevice) Name() string {
+	return d.Info.Name()
+}
+
+func (d MalgoDevice) ID() interface{} {
+	return d.Info.ID
+}
+
+// MalgoProvider implements types.AudioProvider using the malgo library
+type MalgoProvider struct{}
+
+func (p MalgoProvider) GetDevices() ([]types.AudioDevice, error) {
+	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = ctx.Uninit()
+		ctx.Free()
+	}()
+
+	devices, err := ctx.Devices(malgo.Capture)
+	if err != nil {
+		return nil, err
+	}
+
+	wrapped := make([]types.AudioDevice, len(devices))
+	for i, d := range devices {
+		wrapped[i] = MalgoDevice{Info: d}
+	}
+	return wrapped, nil
+}
+
+// GetAudioDevices is a legacy helper (optional, can be removed if all callers updated)
 func GetAudioDevices() ([]malgo.DeviceInfo, error) {
 	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
 	if err != nil {
@@ -25,7 +63,7 @@ func GetAudioDevices() ([]malgo.DeviceInfo, error) {
 }
 
 // CaptureAudio captures audio from a specified device and sends it to a channel.
-func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}, selectedDevice malgo.DeviceInfo) {
+func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan<- types.AudioLevelMsg, quitChan <-chan struct{}, selectedDevice types.AudioDevice) {
 	// Initialize audio context
 	malgoCtx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
 	if err != nil {
@@ -41,7 +79,13 @@ func CaptureAudio(appState *state.State, audioChan chan<- []byte, levelChan chan
 	deviceConfig.Capture.Format = malgo.FormatS16
 	deviceConfig.Capture.Channels = 1
 	deviceConfig.SampleRate = 16000
-	deviceConfig.Capture.DeviceID = selectedDevice.ID.Pointer()
+
+	// Handle ID casting back to malgo.DeviceID if it's a MalgoDevice
+	if md, ok := selectedDevice.(MalgoDevice); ok {
+		deviceConfig.Capture.DeviceID = md.Info.ID.Pointer()
+	} else if id, ok := selectedDevice.ID().(malgo.DeviceID); ok {
+		deviceConfig.Capture.DeviceID = id.Pointer()
+	}
 
 	onRecvFrames := func(pSample, pOutput []byte, framecount uint32) {
 		// It's important to copy the sample data because the buffer will be reused by the audio driver.

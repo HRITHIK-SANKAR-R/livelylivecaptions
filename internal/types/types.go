@@ -9,3 +9,24 @@ type TranscriptionEvent struct {
 
 // AudioLevelMsg carries the RMS value for UI updates
 type AudioLevelMsg float64
+
+// AudioDevice defines the interface for interacting with audio hardware
+type AudioDevice interface {
+	Name() string
+	ID() interface{}
+}
+
+// AudioProvider defines the interface for audio capture engines (e.g., malgo)
+type AudioProvider interface {
+	GetDevices() ([]AudioDevice, error)
+}
+
+// AppConfig represents the global configuration state managed by Viper
+type AppConfig struct {
+	ModelPath    string
+	UseGPU       bool
+	SampleRate   int
+	SelectedMic  string
+	LogToMemory  bool
+	DebugEnabled bool
+}

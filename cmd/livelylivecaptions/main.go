@@ -33,8 +33,9 @@ func main() {
 	}
 	fmt.Printf("Compute provider: %s\n", provider)
 
-	// Get audio devices
-	devices, err := audio.GetAudioDevices()
+	// Get audio devices using the new Provider interface
+	audioProvider := audio.MalgoProvider{}
+	devices, err := audioProvider.GetDevices()
 	if err != nil {
 		fmt.Println("Failed to get audio devices:", err)
 		return
