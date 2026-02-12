@@ -2,6 +2,7 @@ package transcriber
 
 import (
 	"fmt"
+	"livelylivecaptions/internal/hardware"
 	"livelylivecaptions/internal/types"
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 )
@@ -15,10 +16,11 @@ type Transcriber struct {
 	QuitChan   chan struct{}
 }
 
-// NewTranscriber initializes the Sherpa-ONNX recognizer
-func NewTranscriber() (*Transcriber, error) {
+// NewTranscriber initializes the Sherpa-ONNX recognizer with hardware-specific configuration
+func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
+	encoderPath, decoderPath, joinerPath, tokensPath := hardware.GetModelPaths(p)
+
 	// Configuration for the streaming zipformer model
-	// Updated to match the nested structure of sherpa-onnx-go API
 	config := sherpa.OnlineRecognizerConfig{
 		FeatConfig: sherpa.FeatureConfig{
 			SampleRate: 16000,
@@ -26,12 +28,13 @@ func NewTranscriber() (*Transcriber, error) {
 		},
 		ModelConfig: sherpa.OnlineModelConfig{
 			Transducer: sherpa.OnlineTransducerModelConfig{
-				Encoder: "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/encoder-epoch-99-avg-1.onnx",
-				Decoder: "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/decoder-epoch-99-avg-1.onnx",
-				Joiner:  "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/joiner-epoch-99-avg-1.onnx",
+				Encoder: encoderPath,
+				Decoder: decoderPath,
+				Joiner:  joinerPath,
 			},
-			Tokens:     "./models/cpu/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/tokens.txt",
+			Tokens:     tokensPath,
 			NumThreads: 1,
+			Provider:   string(p),
 			Debug:      0,
 			ModelType:  "zipformer",
 		},
@@ -42,7 +45,7 @@ func NewTranscriber() (*Transcriber, error) {
 
 	recognizer := sherpa.NewOnlineRecognizer(&config)
 	if recognizer == nil {
-		return nil, fmt.Errorf("failed to create recognizer")
+		return nil, fmt.Errorf("failed to create recognizer with provider %s", p)
 	}
 
 	stream := sherpa.NewOnlineStream(recognizer)
