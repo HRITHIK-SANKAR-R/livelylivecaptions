@@ -1,0 +1,40 @@
+# Default configuration for Lively Live Captions
+
+# Model settings
+model:
+  # Provider can be "cpu", "cuda", or "mock" (for testing)
+  # If empty or not specified, the application will attempt to detect the best provider.
+  provider: "" 
+  # Base path for Sherpa-ONNX models.
+  # If empty, the application will derive paths based on the provider.
+  path: ""
+  # Specific model file paths (if 'path' is overridden or very custom setup)
+  encoder: ""
+  decoder: ""
+  joiner: ""
+  tokens: ""
+
+# Audio settings
+audio:
+  # Sample rate for audio capture (Hz). 16000 is common for speech recognition.
+  sample_rate: 16000
+  # ID or name of the audio device to use for capture.
+  # If empty, the application will list available devices and prompt for selection.
+  device_id: ""
+  # Enable monitor mode (capture output audio instead of input).
+  # Requires OS/driver support. Use with caution.
+  monitor_mode: false
+
+# Logging settings
+log:
+  # Whether to log messages to an in-memory ring buffer for UI display.
+  to_memory: true
+  # Path to a file for persistent logging. If empty, no file logging.
+  file_path: ""
+  # Minimum log level to capture: debug, info, warn, error, fatal.
+  level: "info"
+
+# Debug settings
+debug:
+  # Enable general debug features across the application.
+  enabled: false
