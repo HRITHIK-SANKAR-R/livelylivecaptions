@@ -77,7 +77,7 @@ func main() {
 	logger.InitGlobalLogger(cfg.Log)
 
 	// Print the banner
-	banner.Print()
+	banner.PrintFireSunset()
 
 	// Determine compute provider based on resolved config
 	var provider hardware.Provider
@@ -105,9 +105,26 @@ func main() {
 		return
 	}
 
-	logger.Info("Available audio devices:")
+	logger.Info("\n\nAvailable audio devices:\n\n")
+	
+	// Define colors for device list
+	colorPurple := "\033[38;2;170;100;255m" // A nice purple
+	colorSkyBlue := "\033[38;2;135;206;250m" // Sky blue
+	colorReset := "\033[0m"
+
+	fmt.Fprintf(os.Stderr, "\n") // Add a newline for spacing
+
 	for i, device := range devices {
-		logger.Info("%d: %s (ID: %v)\n\n", i, device.Name(), device.ID())
+		// Print the device info with custom colors
+		fmt.Fprintf(os.Stderr, "%s%d:%s %s%s (ID: %v)%s\n\n",
+			colorPurple,
+			i,
+			colorReset, // Reset after the colon
+			colorSkyBlue,
+			device.Name(),
+			device.ID(),
+			colorReset,
+		)
 	}
 
 	// Use device_id from config or prompt if not set
@@ -150,13 +167,28 @@ func main() {
     defer selectedDevice.Close() // Ensure device is closed on exit
 
 	// Initialize Transcriber
-	tr, err := transcriber.NewTranscriber(provider)
+	var tr *transcriber.Transcriber
+
+	logger.Info("Attempting to initialize transcriber with %s provider...", provider)
+	tr, err = transcriber.NewTranscriber(provider)
+
+	// If initialization fails and the provider was CUDA, attempt to fall back to CPU
+	if err != nil && provider == hardware.ProviderCUDA {
+		logger.Warn("Failed to initialize transcriber with GPU. Attempting to fall back to CPU.")
+		logger.Debug("GPU initialization error: %v", err) // Log original error for debugging
+
+		provider = hardware.ProviderCPU // Switch to CPU
+		logger.Info("Attempting to initialize transcriber with %s provider...", provider)
+		tr, err = transcriber.NewTranscriber(provider)
+	}
+
+	// If there's still an error after potential fallback, exit
 	if err != nil {
 		logger.Error("Failed to initialize transcriber: %v", err)
 		return
 	}
 	defer tr.Close()
-	logger.Info("Transcriber initialized (Sherpa-ONNX)")
+	logger.Info("Transcriber initialized successfully with %s provider.", provider)
 
 	// Create channels
 	micAudioChan := tr.InputChan

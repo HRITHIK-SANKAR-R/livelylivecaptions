@@ -5,6 +5,8 @@ import (
 	"livelylivecaptions/internal/hardware"
 	"livelylivecaptions/internal/logger" // Added import
 	"livelylivecaptions/internal/types"
+	"sync" // Import sync package
+
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 )
 
@@ -24,10 +26,20 @@ type Transcriber struct {
 	InputChan  chan []byte
 	OutputChan chan types.TranscriptionEvent
 	QuitChan   chan struct{}
+	wg         sync.WaitGroup // Add WaitGroup for graceful shutdown
 }
 
-// NewTranscriber initializes the Sherpa-ONNX recognizer with hardware-specific configuration
-func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
+// NewTranscriber initializes the Sherpa-ONNX recognizer with hardware-specific configuration.
+// It includes a panic-recovery mechanism to handle CGO errors safely.
+func NewTranscriber(p hardware.Provider) (tr *Transcriber, err error) {
+	// Defer a function to recover from panics, which can happen with CGO calls
+	// if libraries are missing or there's a hardware mismatch.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic occurred during recognizer initialization with provider '%s': %v", p, r)
+		}
+	}()
+
 	encoderPath, decoderPath, joinerPath, tokensPath := hardware.GetModelPaths(p)
 
 	// Configuration for the streaming zipformer model
@@ -54,15 +66,18 @@ func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
 
 	recognizer := sherpa.NewOnlineRecognizer(&config)
 	if recognizer == nil {
-		return nil, fmt.Errorf("failed to create recognizer with provider %s", p)
+		// This path is taken if Sherpa-ONNX returns nil without panicking.
+		return nil, fmt.Errorf("failed to create recognizer with provider %s (returned nil)", p)
 	}
 
 	stream := sherpa.NewOnlineStream(recognizer)
 	if stream == nil {
+		// If stream creation fails, we must clean up the successfully created recognizer.
+		sherpa.DeleteOnlineRecognizer(recognizer)
 		return nil, fmt.Errorf("failed to create stream")
 	}
 
-	logger.Info("Sherpa-ONNX transcriber initialized with provider: %s", p) // Added logger info
+	logger.Debug("Sherpa-ONNX transcriber resources allocated for provider: %s", p)
 
 	return &Transcriber{
 		recognizer: recognizer,
@@ -90,17 +105,20 @@ func BytesToSamples(audioData []byte) []float32 {
 
 // Start begins processing audio from the input channel
 func (t *Transcriber) Start() {
+	t.wg.Add(1)
 	go func() {
+		defer t.wg.Done()
 		defer close(t.OutputChan)
-		
-		// Expected sample rate (16kHz) and format (float32 required by Sherpa)
-		// Audio capture is providing S16LE (int16), so we need to convert.
-		
+
 		for {
 			select {
 			case <-t.QuitChan:
 				return
-			case audioData := <-t.InputChan:
+			case audioData, ok := <-t.InputChan:
+				if !ok {
+					// InputChan was closed, exit loop
+					return
+				}
 				samples := BytesToSamples(audioData)
 				if samples == nil {
 					continue
@@ -116,18 +134,18 @@ func (t *Transcriber) Start() {
 
 				// Get result
 				result := t.recognizer.GetResult(t.stream)
-				
+
 				// Only send if there's text (partial or final)
 				if result != nil && len(result.Text) > 0 {
 					event := types.TranscriptionEvent{
 						Text: result.Text,
 					}
-					
+
 					if t.recognizer.IsEndpoint(t.stream) {
 						t.recognizer.Reset(t.stream)
 						event.IsFinal = true
 					}
-					
+
 					t.OutputChan <- event
 				}
 			}
@@ -135,8 +153,15 @@ func (t *Transcriber) Start() {
 	}()
 }
 
-// Close releases resources
+// Close releases resources and waits for the processing goroutine to finish.
 func (t *Transcriber) Close() {
+	// Signal the processing goroutine to stop by closing the quit channel.
+	close(t.QuitChan)
+
+	// Wait for the goroutine to finish its current work and exit.
+	t.wg.Wait()
+
+	// Now that the goroutine is stopped, it's safe to release CGO resources.
 	if t.stream != nil {
 		sherpa.DeleteOnlineStream(t.stream)
 	}

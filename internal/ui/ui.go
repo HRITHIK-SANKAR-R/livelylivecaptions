@@ -34,9 +34,12 @@ var (
 			Width(width - 14).
 			Height(height)
 
-	finalTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))    // White
-	partialTextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))   // Grey
+	finalTextStyle   = transcriptionTextStyle    // Fire color
+	partialTextStyle = transcriptionTextStyle   // Fire color
 	warningTextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("202"))   // Orange
+
+	levelTextStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("214")) // Amber for "Level"
+	transcriptionTextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6600")) // Fire color for transcription
 )
 
 type tickMsg time.Time
@@ -160,10 +163,10 @@ func (m model) View() string {
 
 	// Build meter display from bottom up
 	var meterLines []string
-	meterLines = append(meterLines, "Level")
+	meterLines = append(meterLines, levelTextStyle.Render("Level"))
 	for i := height - 3; i >= 0; i-- {
 		if i >= (height-2)-meterHeight {
-			meterLines = append(meterLines, "█████")
+			meterLines = append(meterLines, levelTextStyle.Render("█████"))
 		} else {
 			meterLines = append(meterLines, "     ")
 		}
