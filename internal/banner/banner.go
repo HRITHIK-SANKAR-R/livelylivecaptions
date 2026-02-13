@@ -1,218 +1,394 @@
 package banner
 
 import (
-	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
+	"fmt"
+	"strings"
 )
 
-// Print displays the Gemini-style blue-to-pink gradient banner
+// ANSI color codes
+const (
+	Reset = "\033[0m"
+	Bold  = "\033[1m"
+)
+
+// RGB creates an ANSI 24-bit color code
+func RGB(r, g, b int) string {
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, b)
+}
+
+// interpolateColor calculates the color at position t between start and end colors
+func interpolateColor(startR, startG, startB, endR, endG, endB int, t float64) (int, int, int) {
+	r := int(float64(startR) + (float64(endR-startR) * t))
+	g := int(float64(startG) + (float64(endG-startG) * t))
+	b := int(float64(startB) + (float64(endB-startB) * t))
+	return r, g, b
+}
+
+// ASCII art for "LIVELYLIVECAPTIONS" (Standard)
+var asciiArt = []string{
+	" _      _           _         _     _           ____             _  _                ",
+	"| |    (_)_   _____| |_   _  | |   (_)_   _____|  _ \\ __ _ _ __ | |_(_) ___  _ __   ___",
+	"| |    | \\ \\ / / _ \\ | | | | | |   | \\ \\ / / _ \\ |_) / _` | '_ \\| __| |/ _ \\| '_ \\/ __|",
+	"| |___| |\\ V /  __/ | |_| | | |___| |\\ V /  __/  __/ (_| | |_) | |_| | (_) | | | \\__ \\",
+	"|_____|_|_\\_/ \\___|_|\\__, | |_____|_|_\\_/ \\___|_|   \\__,_| .__/ \\__|_|\\___/|_| |_|___/",
+	"                    |___/                             |_|                          ",
+}
+
+// Block style ASCII art for "LIVELY LIVE CAPTIONS"
+// Block style ASCII art for "LIVELY LIVE" (Line 1) and "CAPTIONS" (Line 2)
+var blockArt = []string{
+	// Line 1: LIVELY LIVE
+	"██╗     ██╗██╗   ██╗███████╗██╗  ██╗   ██╗    ██╗     ██╗██╗   ██╗███████╗",
+	"██║     ██║██║   ██║██╔════╝██║  ╚██╗ ██╔╝    ██║     ██║██║   ██║██╔════╝",
+	"██║     ██║██║   ██║█████╗  ██║   ╚████╔╝     ██║     ██║██║   ██║█████╗  ",
+	"██║     ██║╚██╗ ██╔╝██╔══╝  ██║    ╚██╔╝      ██║     ██║╚██╗ ██╔╝██╔══╝  ",
+	"███████╗██║ ╚████╔╝ ███████╗███████╗██║       ███████╗██║ ╚████╔╝ ███████╗",
+	"╚══════╝╚═╝  ╚═══╝  ╚══════╝╚══════╝╚═╝       ╚══════╝╚═╝  ╚═══╝  ╚══════╝",
+	"",
+	// Line 2: CAPTIONS (Centered relative to the top line)
+	"      ██████╗ █████╗ ██████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗",
+	"     ██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝",
+	"     ██║     ███████║██████╔╝   ██║   ██║██║   ██║██╔██╗ ██║███████╗",
+	"     ██║     ██╔══██║██╔═══╝    ██║   ██║██║   ██║██║╚██╗██║╚════██║",
+	"     ╚██████╗██║  ██║██║        ██║   ██║╚██████╔╝██║ ╚████║███████║",
+	"      ╚═════╝╚═╝  ╚═╝╚╝        ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝",
+}
+
+// Print displays the Gemini-style banner with blue-to-pink gradient
 func Print() {
-	// Define gradient colors (Blue → Pink like Gemini)
-	startColor := pterm.NewRGB(20, 90, 200)    // Deep blue
-	endColor := pterm.NewRGB(255, 130, 140)    // Pink
-	
-	// Create the gradient
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	// Create letters
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	
-	// Render the big text
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	// Print with gradient applied
-	gradient.Println(bigText)
-	
-	// Wave decoration
-	printWave()
-	
-	// Status message
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+	// Gemini gradient: Blue → Pink
+	startR, startG, startB := 20, 90, 200    // Deep blue
+	endR, endG, endB := 255, 130, 140        // Pink
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				// Calculate gradient position (0.0 to 1.0)
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 } // Prevent divide by zero for empty lines
+
+				// Get interpolated color
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+
+				// Print character with color
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+
+	// Status message in cyan/magenta
+	fmt.Println(RGB(150, 100, 200) + "    > Listening for audio input..." + Reset)
 }
 
-// PrintGeminiStyle - Alternative vibrant gradient
-func PrintGeminiStyle() {
-	startColor := pterm.NewRGB(15, 80, 180)    // Electric blue
-	endColor := pterm.NewRGB(255, 120, 160)    // Hot pink
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	printWave()
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+// PrintOrangePeach displays an Orange → Peach gradient banner
+func PrintOrangePeach() {
+	startR, startG, startB := 255, 140, 0    // Orange
+	endR, endG, endB := 255, 218, 185        // Peach
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 }
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+
+	fmt.Println(RGB(255, 180, 150) + "    > Listening for audio input..." + Reset)
 }
 
-// PrintGeminiExact - Closest to the Gemini screenshot
-func PrintGeminiExact() {
-	startColor := pterm.NewRGB(20, 90, 200)    // Blue
-	endColor := pterm.NewRGB(255, 130, 140)    // Pink
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	printGradientWave()
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+// PrintFireSunset displays a Fire → Sunset gradient banner
+func PrintFireSunset() {
+	startR, startG, startB := 255, 69, 0     // Fire Orange-Red
+	endR, endG, endB := 255, 165, 0          // Sunset Orange
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 }
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+
+	fmt.Println(RGB(255, 100, 50) + "    > Listening for audio input..." + Reset)
 }
 
-// PrintTwoWords - Display "Lively" and "LiveCaptions" as separate words
-func PrintTwoWords() {
-	startColor := pterm.NewRGB(20, 90, 200)    // Blue
-	endColor := pterm.NewRGB(255, 130, 140)    // Pink
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	lively := putils.LettersFromString("Lively")
-	captions := putils.LettersFromString("LiveCaptions")
-	
-	bigText, _ := pterm.DefaultBigText.WithLetters(lively, captions).Srender()
-	
-	gradient.Println(bigText)
-	printGradientWave()
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+// PrintGoldenHour displays a Golden Hour (Orange → Yellow) gradient banner
+func PrintGoldenHour() {
+	startR, startG, startB := 255, 165, 0    // Orange
+	endR, endG, endB := 255, 255, 0          // Yellow
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 }
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+
+	fmt.Println(RGB(255, 200, 0) + "    > Listening for audio input..." + Reset)
 }
 
-// PrintCompact - Compact single-line version
+// PrintAmberGlow displays an Amber Glow (Warm & Elegant) gradient banner
+func PrintAmberGlow() {
+	startR, startG, startB := 255, 191, 0    // Amber
+	endR, endG, endB := 255, 215, 0          // Gold
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 }
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+
+	fmt.Println(RGB(255, 200, 50) + "    > Listening for audio input..." + Reset)
+}
+
+// PrintStandard uses the standard ASCII art
+func PrintStandard() {
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	fmt.Println()
+
+	for _, line := range asciiArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+	fmt.Println(RGB(150, 100, 200) + "    > Listening for audio input..." + Reset)
+}
+
+// PrintCompact displays a compact version
 func PrintCompact() {
-	startColor := pterm.NewRGB(20, 90, 200)    // Blue
-	endColor := pterm.NewRGB(255, 130, 140)    // Pink
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    Real-time AI-powered transcription")
+	compactArt := []string{
+		" _      _           _          ____             _  _                ",
+		"| |    (_)_   _____| |_   _   / ___|__ _ _ __ | |_(_) ___  _ __   ___",
+		"| |    | \\ \\ / / _ \\ | | | | | |   / _` | '_ \\| __| |/ _ \\| '_ \\/ __|",
+		"| |___| |\\ V /  __/ | |_| |  | |__| (_| | |_) | |_| | (_) | | | \\__ \\",
+		"|_____|_| \\_/ \\___|_|\\__, |   \\____\\__,_| .__/ \\__|_|\\___/|_| |_|___/",
+		"                    |___/            |_|                          ",
+	}
+
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	fmt.Println()
+
+	for _, line := range compactArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	fmt.Println(RGB(150, 100, 200) + "    Real-time AI-powered transcription" + Reset)
 }
 
-// PrintWithCustomText - Display custom text with Gemini gradient
-func PrintWithCustomText(text string) {
-	startColor := pterm.NewRGB(20, 90, 200)
-	endColor := pterm.NewRGB(255, 130, 140)
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString(text)
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-}
-
-// PrintWithSubtitle - Banner with subtitle
-func PrintWithSubtitle() {
-	startColor := pterm.NewRGB(20, 90, 200)
-	endColor := pterm.NewRGB(255, 130, 140)
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	printGradientWave()
-	
-	// Subtitle with gradient
-	subtitle := "Real-time AI-Powered Speech Recognition"
-	subtitleGradient := pterm.NewRGB(100, 120, 200).Fade(0, 1, 0, pterm.NewRGB(255, 150, 170))
-	subtitleGradient.Println("    " + subtitle)
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
-}
-
-// PrintWithVersion - Banner with version info
+// PrintWithVersion displays banner with version
 func PrintWithVersion(version string) {
-	startColor := pterm.NewRGB(20, 90, 200)
-	endColor := pterm.NewRGB(255, 130, 140)
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	printGradientWave()
-	
-	// Version info
+	Print()
 	versionText := "v" + version + " • Real-time Transcription"
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    " + versionText)
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+	fmt.Println(RGB(150, 100, 200) + "    " + versionText + Reset)
 }
 
-// PrintWithStats - Banner with system stats
+// PrintWithStats displays banner with audio stats
 func PrintWithStats(sampleRate int, channels int, device string) {
-	startColor := pterm.NewRGB(20, 90, 200)
-	endColor := pterm.NewRGB(255, 130, 140)
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyLiveCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	printGradientWave()
-	
-	// System info
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Printfln("    📊 Sample Rate: %d Hz | Channels: %d", sampleRate, channels)
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Printfln("    🎤 Device: %s", device)
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("    > Listening for audio input...")
+	Print()
+	fmt.Printf(RGB(150, 100, 200)+"    📊 Sample Rate: %d Hz | Channels: %d\n"+Reset, sampleRate, channels)
+	fmt.Printf(RGB(150, 100, 200)+"    🎤 Device: %s\n"+Reset, device)
+}
+
+// PrintCustomText prints any text with Gemini gradient
+func PrintCustomText(text string) {
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	textLen := len(text)
+	for i, char := range text {
+		t := float64(i) / float64(textLen)
+		if textLen == 0 { t = 0 }
+		r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+		fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+	}
+	fmt.Println()
 }
 
 // PrintMinimal - Minimal clean version
 func PrintMinimal() {
-	startColor := pterm.NewRGB(20, 90, 200)
-	endColor := pterm.NewRGB(255, 130, 140)
-	
-	gradient := startColor.Fade(0, 1, 0, endColor)
-	
-	letters := putils.LettersFromString("LivelyCaptions")
-	bigText, _ := pterm.DefaultBigText.WithLetters(letters).Srender()
-	
-	gradient.Println(bigText)
-	pterm.Println()
-	
-	pterm.DefaultBasicText.WithStyle(pterm.NewStyle(pterm.FgLightMagenta)).
-		Println("  ► Ready")
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	fmt.Println()
+
+	// Render "Lively Live Captions" with gradient
+	text := "Lively Live Captions"
+	textLen := len(text)
+	for i, char := range text {
+		t := float64(i) / float64(textLen)
+		r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+		fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+	}
+	fmt.Println()
+
+	fmt.Println()
+	fmt.Println(RGB(150, 100, 200) + "  ► Ready" + Reset)
 }
 
-// printWave - Decorative wave with gradient
-func printWave() {
+// printWave displays a decorative wave with gradient
+func printWave(startR, startG, startB, endR, endG, endB int) {
 	wave := "~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~"
-	
-	waveStart := pterm.NewRGB(30, 100, 200)
-	waveEnd := pterm.NewRGB(255, 100, 150)
-	waveGradient := waveStart.Fade(0, 1, 0, waveEnd)
-	
-	waveGradient.Println("    " + wave)
+	waveLen := len(wave)
+
+	fmt.Print("    ")
+	for i, char := range wave {
+		t := float64(i) / float64(waveLen)
+		r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+		fmt.Print(RGB(r, g, b) + string(char) + Reset)
+	}
+	fmt.Println()
 }
 
 // printGradientWave - Wave matching the banner gradient
 func printGradientWave() {
 	wave := "~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~≈~"
-	
-	waveStart := pterm.NewRGB(20, 90, 200)
-	waveEnd := pterm.NewRGB(255, 130, 140)
-	waveGradient := waveStart.Fade(0, 1, 0, waveEnd)
-	
-	waveGradient.Println("    " + wave)
+	waveLen := len(wave)
+
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	fmt.Print("    ")
+	for i, char := range wave {
+		t := float64(i) / float64(waveLen)
+		r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+		fmt.Print(RGB(r, g, b) + string(char) + Reset)
+	}
+	fmt.Println()
+}
+
+// PrintOceanBlue displays ocean blue gradient (blue → cyan)
+func PrintOceanBlue() {
+	startR, startG, startB := 15, 45, 85     // Deep ocean blue
+	endR, endG, endB := 130, 220, 255        // Bright cyan
+
+	fmt.Println()
+
+	for _, line := range blockArt {
+		lineLen := len(line)
+		for charIdx, char := range line {
+			if char != ' ' {
+				t := float64(charIdx) / float64(lineLen)
+				if lineLen == 0 { t = 0 }
+				r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+				fmt.Print(RGB(r, g, b) + Bold + string(char) + Reset)
+			} else {
+				fmt.Print(" ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println()
+	printWave(startR, startG, startB, endR, endG, endB)
+	fmt.Println()
+	fmt.Println(RGB(100, 180, 255) + "    > Listening for audio input..." + Reset)
+}
+
+// GetGradientText returns text with gradient applied (for custom use)
+func GetGradientText(text string) string {
+	startR, startG, startB := 20, 90, 200
+	endR, endG, endB := 255, 130, 140
+
+	var result strings.Builder
+	textLen := len(text)
+
+	for i, char := range text {
+		t := float64(i) / float64(textLen)
+		r, g, b := interpolateColor(startR, startG, startB, endR, endG, endB, t)
+		result.WriteString(RGB(r, g, b) + Bold + string(char) + Reset)
+	}
+
+	return result.String()
 }

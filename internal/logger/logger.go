@@ -76,6 +76,15 @@ func NewRingBuffer(logConfig types.LogConfig, capacity int) *RingBuffer {
 	return rb
 }
 
+// ANSI color constants
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorCyan   = "\033[36m"
+)
+
 // Add appends a new log entry to the buffer.
 func (rb *RingBuffer) Add(level LogLevel, format string, v ...interface{}) {
 	if level < rb.minLevel {
@@ -98,12 +107,27 @@ func (rb *RingBuffer) Add(level LogLevel, format string, v ...interface{}) {
 		rb.count++
 	}
 
+	// Choose color based on level
+	var color string
+	switch level {
+	case LevelDebug:
+		color = ColorCyan
+	case LevelInfo:
+		color = ColorGreen
+	case LevelWarn:
+		color = ColorYellow
+	case LevelError, LevelFatal:
+		color = ColorRed
+	default:
+		color = ColorReset
+	}
+
 	if rb.fileLogger != nil {
 		rb.fileLogger.Printf("[%s] %s", level.String(), msg)
 	}
 	// Also print to stderr for immediate feedback unless it's a UI
 	if os.Getenv("LIVELY_QUIET_STDOUT") != "1" { // Allow suppressing stdout if needed
-		fmt.Fprintf(os.Stderr, "[%s] %s", level.String(), msg)
+		fmt.Fprintf(os.Stderr, "%s[%s]%s %s", color, level.String(), ColorReset, msg)
 	}
 }
 
