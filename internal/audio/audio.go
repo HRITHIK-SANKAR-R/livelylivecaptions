@@ -46,7 +46,8 @@ func (d *MalgoDevice) Start() error {
 	d.bufferMutex.Unlock()
 
 	var err error
-	d.context, err = malgo.InitContext(nil, malgo.ContextConfig{}, nil)
+	backends := []malgo.Backend{malgo.BackendPulseaudio}
+	d.context, err = malgo.InitContext(backends, malgo.ContextConfig{}, nil)
 	if err != nil {
 		d.isCapturing = false
 		return fmt.Errorf("failed to initialize malgo context: %w", err)
@@ -67,8 +68,7 @@ func (d *MalgoDevice) Start() error {
 		select {
 		case d.audioBuffer <- sampleCopy:
 		default:
-			// Drop frame if buffer is full to avoid blocking audio callback
-			// logger.Warn("Audio buffer full, dropping frame.") // Use logger here if desired
+			logger.Warn("Audio buffer full, dropping frame.")
 		}
 	}
 
@@ -160,7 +160,8 @@ func CalculateRMS(audioData []byte) float64 {
 type MalgoProvider struct{}
 
 func (p MalgoProvider) GetDevices() ([]types.AudioDevice, error) {
-	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
+	backends := []malgo.Backend{malgo.BackendPulseaudio}
+	ctx, err := malgo.InitContext(backends, malgo.ContextConfig{}, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -192,7 +192,7 @@ func main() {
 				select {
 				case levelChan <- types.AudioLevelMsg(rms):
 				default: // Non-blocking send to levelChan
-				}
+				} // Added missing brace
 			}
 		}
 	}()
