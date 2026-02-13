@@ -1,15 +1,14 @@
 package audio
 
 import (
-	"bytes"
+	// "bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"time"
 
-	"livelylivecaptions/internal/types"
+	// "livelylivecaptions/internal/types"
 )
 
 const (
@@ -36,7 +35,7 @@ type MockAudioDevice struct {
 // NewMockAudioDevice creates a new MockAudioDevice instance.
 // It loads audio from the specified WAV file.
 func NewMockAudioDevice(name, id, wavFilePath string) (*MockAudioDevice, error) {
-	data, err := ioutil.ReadFile(wavFilePath)
+	data, err := os.ReadFile(wavFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read WAV file %s: %w", wavFilePath, err)
 	}
@@ -114,8 +113,7 @@ func (m *MockAudioDevice) Start() error {
 	defer m.mu.Unlock()
 	m.closed = false
 	m.currentPos = 0 // Reset position on start
-	fmt.Printf("MockAudioDevice '%s' started, streaming audio from '%s'.
-", m.name, DefaultTestWavPath)
+	fmt.Printf("MockAudioDevice '%s' started, streaming audio from '%s'.", m.name, DefaultTestWavPath)
 	return nil
 }
 
@@ -160,8 +158,7 @@ func (m *MockAudioDevice) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.closed = true
-	fmt.Printf("MockAudioDevice '%s' closed.
-", m.name)
+	fmt.Printf("MockAudioDevice '%s' closed.", m.name)
 	return nil
 }
 

@@ -16,7 +16,7 @@ import (
 type MalgoDevice struct {
 	Info        malgo.DeviceInfo
 	device      *malgo.Device
-	context     *malgo.Context
+	context     *malgo.AllocatedContext
 	audioBuffer chan []byte    // Channel to push audio frames from malgo callback to Read()
 	quitRead    chan struct{}  // Signal to stop the internal goroutine feeding audioBuffer
 	bufferMutex sync.Mutex     // Protects access to audioBuffer and related state

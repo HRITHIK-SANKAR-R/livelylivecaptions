@@ -152,7 +152,7 @@ func waitForAudioLevel(sub <-chan types.AudioLevelMsg) tea.Cmd {
 
 // RunProgram starts the Bubble Tea program
 func RunProgram(transChan <-chan types.TranscriptionEvent, levelChan <-chan types.AudioLevelMsg, quitChan chan<- struct{}) error {
-	p := tea.NewProgram(initialModel(transChan, levelChan, quitChan))
+	p := tea.NewProgram(InitialModel(transChan, levelChan, quitChan))
 	if _, err := p.Run(); err != nil {
 		return err
 	}

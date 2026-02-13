@@ -1,11 +1,10 @@
 package ui_test
 
 import (
-	"context"
+	"io"
 	"livelylivecaptions/internal/types"
 	"livelylivecaptions/internal/ui"
 	"testing"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
@@ -21,17 +20,7 @@ func TestUI(t *testing.T) {
 	m := ui.InitialModel(transChan, levelChan, quitChan)
 
 	// Create a test program
-	ctx := context.Background()
-	tm := teatest.NewTestProgram(t, m,
-		teatest.WithInitialTermSize(120, 25), // Set initial terminal size
-		teatest.WithSendTimeout(time.Second),
-	)
-
-	// Start the test program
-	go tm.Run(ctx)
-	
-	// Wait for Init
-	tm.Wait(m.Init())
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 25))
 
 	// Send some events
 	tm.Send(types.TranscriptionEvent{Text: "Hello world", IsFinal: false})
@@ -50,8 +39,12 @@ func TestUI(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 
 	// Wait for the program to exit
-	tm.Wait(tea.Quit)
+	tm.WaitFinished(t)
 
 	// Check the final output against a golden snapshot
-	teatest.RequireEqual(t, tm.FinalOutput(), "testdata/final_output.golden")
+	finalOutput, err := io.ReadAll(tm.FinalOutput(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	teatest.RequireEqualOutput(t, finalOutput)
 }

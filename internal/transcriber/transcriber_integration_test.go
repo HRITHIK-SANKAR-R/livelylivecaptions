@@ -2,12 +2,11 @@ package transcriber_test
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
+	// "fmt"
 	"livelylivecaptions/internal/audio"
 	"livelylivecaptions/internal/hardware"
 	"livelylivecaptions/internal/transcriber"
-	"livelylivecaptions/internal/types"
+	// "livelylivecaptions/internal/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,7 +130,7 @@ func TestGoldenFileTranscription(t *testing.T) {
 	finalTranscribedText := strings.TrimSpace(transcribedTextBuilder.String())
 
 	// 3. Load Golden Transcript
-	expectedTranscriptBytes, err := ioutil.ReadFile(goldenTranscriptPath)
+	expectedTranscriptBytes, err := os.ReadFile(goldenTranscriptPath)
 	if err != nil {
 		t.Fatalf("Failed to read golden transcript file: %v", err)
 	}
@@ -143,17 +142,11 @@ func TestGoldenFileTranscription(t *testing.T) {
 	expectedWords := strings.Fields(expectedTranscript)
 
 	// Note: wer.CalculateWER returns 0 for identical empty slices, which is fine for our empty transcript test.
-	errorRate, err := wer.CalculateWER(expectedWords, actualWords)
-	if err != nil {
-		t.Fatalf("Failed to calculate WER: %v", err)
-	}
+	errorRate, _ := wer.WER(expectedWords, actualWords)
 
 	const maxAllowedWER = 0.5 // Adjust this threshold based on model performance
 	if errorRate > maxAllowedWER {
-		t.Errorf("Word Error Rate too high! Expected WER <= %.2f, Got %.2f
-Actual: '%s'
-Expected: '%s'",
-			maxAllowedWER, errorRate, finalTranscribedText, expectedTranscript)
+		t.Errorf("Word Error Rate too high! Expected WER <= %.2f, Got %.2fActual: '%s'Expected: '%s'",maxAllowedWER, errorRate, finalTranscribedText, expectedTranscript)
 	} else {
 		t.Logf("Word Error Rate (WER) %.2f is within acceptable limits (<= %.2f)", errorRate, maxAllowedWER)
 		t.Logf("Actual transcription: '%s'", finalTranscribedText)

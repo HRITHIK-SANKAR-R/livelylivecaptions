@@ -103,8 +103,7 @@ func (rb *RingBuffer) Add(level LogLevel, format string, v ...interface{}) {
 	}
 	// Also print to stderr for immediate feedback unless it's a UI
 	if os.Getenv("LIVELY_QUIET_STDOUT") != "1" { // Allow suppressing stdout if needed
-		fmt.Fprintf(os.Stderr, "[%s] %s
-", level.String(), msg)
+		fmt.Fprintf(os.Stderr, "[%s] %s", level.String(), msg)
 	}
 }
 
