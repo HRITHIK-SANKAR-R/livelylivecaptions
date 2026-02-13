@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"livelylivecaptions/internal/audio"
+	"livelylivecaptions/internal/banner"
 	"livelylivecaptions/internal/hardware"
 	"livelylivecaptions/internal/logger"
 	"livelylivecaptions/internal/transcriber"
@@ -75,6 +76,9 @@ func main() {
 	// Initialize global logger after config is unmarshaled
 	logger.InitGlobalLogger(cfg.Log)
 
+	// Print the banner
+	banner.Print()
+
 	// Determine compute provider based on resolved config
 	var provider hardware.Provider
 	requestedGPU := (cfg.Model.Provider == hardware.ProviderCUDA) // Check if GPU was explicitly requested
@@ -94,7 +98,7 @@ func main() {
 	}
 
 	// Get audio devices using the new Provider interface
-	audioProvider := audio.MalgoProvider{}
+	audioProvider := audio.PortAudioProvider{}
 	devices, err := audioProvider.GetDevices()
 	if err != nil {
 		logger.Error("Failed to get audio devices: %v", err)
@@ -103,7 +107,7 @@ func main() {
 
 	logger.Info("Available audio devices:")
 	for i, device := range devices {
-		logger.Info("%d: %s (ID: %v)", i, device.Name(), device.ID())
+		logger.Info("%d: %s (ID: %v)\n\n", i, device.Name(), device.ID())
 	}
 
 	// Use device_id from config or prompt if not set

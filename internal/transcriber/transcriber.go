@@ -46,7 +46,6 @@ func NewTranscriber(p hardware.Provider) (*Transcriber, error) {
 			NumThreads: 1,
 			Provider:   string(p),
 			Debug:      0,
-			ModelType:  "zipformer",
 		},
 		DecodingMethod: "greedy_search",
 		MaxActivePaths: 4,
