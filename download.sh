@@ -16,28 +16,22 @@ echo "Directory structure created."
 
 # Function to download Nemotron model
 download_nemotron() {
-    echo "Downloading Nemotron model files..."
-    cd models/nemotron
-    
-    echo "Downloading encoder.onnx..."
-    wget https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14/resolve/main/encoder.onnx -O encoder.onnx
-    
-    echo "Downloading decoder.onnx..."
-    wget https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14/resolve/main/decoder.onnx -O decoder.onnx
-    
-    echo "Downloading joiner.onnx..."
-    wget https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14/resolve/main/joiner.onnx -O joiner.onnx
-    
-    echo "Downloading tokens.txt..."
-    wget https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14/resolve/main/tokens.txt -O tokens.txt
-    
+    echo "Downloading Nemotron model files using hf CLI..."
+    local repo_id="csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14"
+    local local_dir="models/nemotron"
+
+    # Create the target directory if it doesn't exist
+    mkdir -p "${local_dir}"
+
+    hf download "${repo_id}" encoder.onnx decoder.onnx joiner.onnx tokens.txt --local-dir "${local_dir}" --quiet
+
     echo "Nemotron model files downloaded."
-    cd ../..
 }
 
 # Function to download Sherpa June 2023 model (from the original GPU model location)
 download_sherpa() {
     echo "Downloading Sherpa June 2023 model files..."
+    local initial_dir=$(pwd) # Save current directory
     cd /tmp  # Use temp directory to download and extract
     
     echo "Downloading Sherpa June 2023 GPU model archive..."
@@ -49,27 +43,27 @@ download_sherpa() {
     extracted_dir=$(ls -1d temp_extract/*/)
     
     # Copy specific files to our sherpa directory
-    cp "${extracted_dir}"encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx ../models/sherpa/
-    cp "${extracted_dir}"decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx ../models/sherpa/
-    cp "${extracted_dir}"joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx ../models/sherpa/
-    cp "${extracted_dir}"tokens.txt ../models/sherpa/
+    cp "${extracted_dir}"encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx "${initial_dir}/models/sherpa/"
+    cp "${extracted_dir}"decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx "${initial_dir}/models/sherpa/"
+    cp "${extracted_dir}"joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx "${initial_dir}/models/sherpa/"
+    cp "${extracted_dir}"tokens.txt "${initial_dir}/models/sherpa/"
     
     # Also copy other model files that might be needed
     if [ -f "${extracted_dir}encoder-epoch-99-avg-1-chunk-16-left-128.onnx" ]; then
-        cp "${extracted_dir}"encoder-epoch-99-avg-1-chunk-16-left-128.onnx ../models/sherpa/
+        cp "${extracted_dir}"encoder-epoch-99-avg-1-chunk-16-left-128.onnx "${initial_dir}/models/sherpa/"
     fi
     if [ -f "${extracted_dir}decoder-epoch-99-avg-1-chunk-16-left-128.onnx" ]; then
-        cp "${extracted_dir}"decoder-epoch-99-avg-1-chunk-16-left-128.onnx ../models/sherpa/
+        cp "${extracted_dir}"decoder-epoch-99-avg-1-chunk-16-left-128.onnx "${initial_dir}/models/sherpa/"
     fi
     if [ -f "${extracted_dir}joiner-epoch-99-avg-1-chunk-16-left-128.onnx" ]; then
-        cp "${extracted_dir}"joiner-epoch-99-avg-1-chunk-16-left-128.onnx ../models/sherpa/
+        cp "${extracted_dir}"joiner-epoch-99-avg-1-chunk-16-left-128.onnx "${initial_dir}/models/sherpa/"
     fi
     
     # Clean up temp files
     rm -rf temp_extract sherpa-june-2023.tar.bz2
     
     echo "Sherpa June 2023 model files downloaded."
-    cd ..
+    cd "${initial_dir}" # Return to initial directory
 }
 
 # Function to download GPU libraries for Linux

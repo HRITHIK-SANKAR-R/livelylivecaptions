@@ -27,18 +27,25 @@ First, ensure you have the necessary dependencies for your operating system.
 #### Linux (Debian/Ubuntu)
 ```bash
 sudo apt-get update
-sudo apt-get install -y portaudio19-dev wget tar git
+sudo apt-get install -y portaudio19-dev wget tar git python3-pip
+pip install hf
 ```
 
 #### Linux (Arch)
 ```bash
 sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm portaudio wget tar git
+sudo pacman -S --noconfirm portaudio wget tar git python3-pip
+pip install hf
 ```
 
 #### Windows
 - **Go**: Install Go for Windows from the [official website](https://golang.org/dl/).
 - **Git**: Install Git for Windows from the [official website](https://git-scm.com/download/win). A shell environment like Git Bash is recommended.
+- **Python & pip**: Install Python for Windows from the [official website](https://www.python.org/downloads/windows/). Ensure pip is available.
+- **hf CLI**: Install the `hf` Python package to get the `hf` CLI functionality:
+  ```bash
+  pip install hf
+  ```
 - **PortAudio**: There is no official package manager for PortAudio on Windows. The `go get` process may handle this, but manual setup might be required if you encounter errors.
 - **NVIDIA GPU Drivers & CUDA**: Ensure you have the latest NVIDIA drivers and the CUDA Toolkit installed if you plan to use GPU acceleration.
 
@@ -57,6 +64,7 @@ The application requires models for processing. We recommend using our automated
 chmod +x download.sh
 ./download.sh
 ```
+**Note**: The `download.sh` script now utilizes the `hf` command-line interface (CLI) for downloading models from Hugging Face. Ensure `hf` is installed as per the "Dependencies" section.
 
 The script will guide you through the download process for your operating system and model preferences. The GPU libraries are required for optimal performance and will always be downloaded.
 
