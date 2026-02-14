@@ -166,29 +166,21 @@ func main() {
     }
     defer selectedDevice.Close() // Ensure device is closed on exit
 
-	// Initialize Transcriber
+	// Initialize Transcriber with hierarchical model loading
 	var tr *transcriber.Transcriber
 
-	logger.Info("Attempting to initialize transcriber with %s provider...", provider)
-	tr, err = transcriber.NewTranscriber(provider)
+	logger.Info("Attempting to initialize transcriber with hierarchical model loading...")
+	logger.Info("Primary: Nemotron model, Fallback: Sherpa GPU, Final Fallback: Sherpa CPU")
+	
+	tr, err = transcriber.NewTranscriberWithFallback()
 
-	// If initialization fails and the provider was CUDA, attempt to fall back to CPU
-	if err != nil && provider == hardware.ProviderCUDA {
-		logger.Warn("Failed to initialize transcriber with GPU. Attempting to fall back to CPU.")
-		logger.Debug("GPU initialization error: %v", err) // Log original error for debugging
-
-		provider = hardware.ProviderCPU // Switch to CPU
-		logger.Info("Attempting to initialize transcriber with %s provider...", provider)
-		tr, err = transcriber.NewTranscriber(provider)
-	}
-
-	// If there's still an error after potential fallback, exit
+	// If there's still an error after all fallbacks, exit
 	if err != nil {
-		logger.Error("Failed to initialize transcriber: %v", err)
+		logger.Error("Failed to initialize transcriber with any model: %v", err)
 		return
 	}
 	defer tr.Close()
-	logger.Info("Transcriber initialized successfully with %s provider.", provider)
+	logger.Info("Transcriber initialized successfully with selected model.")
 
 	// Create channels
 	micAudioChan := tr.InputChan

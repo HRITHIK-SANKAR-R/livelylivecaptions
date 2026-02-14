@@ -29,6 +29,104 @@ type Transcriber struct {
 	wg         sync.WaitGroup // Add WaitGroup for graceful shutdown
 }
 
+// NewTranscriberWithFallback attempts to initialize the transcriber with a hierarchy of models:
+// 1. Nemotron model (primary)
+// 2. Sherpa GPU model (fallback)
+// 3. Sherpa CPU model (final fallback)
+func NewTranscriberWithFallback() (tr *Transcriber, err error) {
+	logger.Info("Attempting to initialize with Nemotron model (primary)...")
+
+	// Try Nemotron model first
+	tr, err = NewNemotronTranscriber()
+	if err == nil {
+		logger.Info("Successfully initialized with Nemotron model")
+		return tr, nil
+	}
+
+	logger.Warn("Failed to initialize with Nemotron model: %v", err)
+	logger.Info("Attempting to initialize with Sherpa GPU model (fallback)...")
+
+	// Fallback to GPU model
+	if hardware.DetectBestProvider() == hardware.ProviderCUDA {
+		tr, err = NewTranscriber(hardware.ProviderCUDA)
+		if err == nil {
+			logger.Info("Successfully initialized with Sherpa GPU model")
+			return tr, nil
+		}
+		
+		logger.Warn("Failed to initialize with Sherpa GPU model: %v", err)
+		logger.Info("Attempting to initialize with Sherpa CPU model (final fallback)...")
+	}
+
+	// Final fallback to CPU model
+	tr, err = NewTranscriber(hardware.ProviderCPU)
+	if err != nil {
+		logger.Error("Failed to initialize with any model: %v", err)
+		return nil, err
+	}
+
+	logger.Info("Successfully initialized with Sherpa CPU model")
+	return tr, nil
+}
+
+// NewNemotronTranscriber initializes the Sherpa-ONNX recognizer with the Nemotron model.
+func NewNemotronTranscriber() (tr *Transcriber, err error) {
+	// Defer a function to recover from panics, which can happen with CGO calls
+	// if libraries are missing or there's a hardware mismatch.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic occurred during Nemotron model initialization: %v", r)
+		}
+	}()
+
+	encoderPath, decoderPath, joinerPath, tokensPath := hardware.GetModelPaths(hardware.ProviderNemotron)
+
+	// Configuration for the Nemotron model
+	config := sherpa.OnlineRecognizerConfig{
+		FeatConfig: sherpa.FeatureConfig{
+			SampleRate: 16000,
+			FeatureDim: 80,
+		},
+		ModelConfig: sherpa.OnlineModelConfig{
+			Transducer: sherpa.OnlineTransducerModelConfig{
+				Encoder: encoderPath,
+				Decoder: decoderPath,
+				Joiner:  joinerPath,
+			},
+			Tokens:     tokensPath,
+			NumThreads: 1,
+			Provider:   "cuda", // Use CUDA for GPU acceleration
+			Debug:      0,
+		},
+		DecodingMethod: "greedy_search", // Use greedy search for better performance
+		MaxActivePaths: 1, // Only 1 path for greedy search
+		EnableEndpoint: 1, // Enable endpoint detection
+	}
+
+	recognizer := sherpa.NewOnlineRecognizer(&config)
+	if recognizer == nil {
+		// This path is taken if Sherpa-ONNX returns nil without panicking.
+		return nil, fmt.Errorf("failed to create recognizer with Nemotron model (returned nil)")
+	}
+
+	stream := sherpa.NewOnlineStream(recognizer)
+	if stream == nil {
+		// If stream creation fails, we must clean up the successfully created recognizer.
+		sherpa.DeleteOnlineRecognizer(recognizer)
+		return nil, fmt.Errorf("failed to create stream for Nemotron model")
+	}
+
+	logger.Debug("Sherpa-ONNX transcriber resources allocated for Nemotron model")
+
+	return &Transcriber{
+		recognizer: recognizer,
+		stream:     stream,
+		InputChan:  make(chan []byte, 10), // Buffered to prevent blocking audio capture
+		OutputChan: make(chan types.TranscriptionEvent),
+		QuitChan:   make(chan struct{}),
+	}, nil
+}
+
 // NewTranscriber initializes the Sherpa-ONNX recognizer with hardware-specific configuration.
 // It includes a panic-recovery mechanism to handle CGO errors safely.
 func NewTranscriber(p hardware.Provider) (tr *Transcriber, err error) {

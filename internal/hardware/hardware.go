@@ -4,8 +4,9 @@ package hardware
 type Provider string
 
 const (
-	ProviderCPU  Provider = "cpu"
-	ProviderCUDA Provider = "cuda"
+	ProviderCPU     Provider = "cpu"
+	ProviderCUDA    Provider = "cuda"
+	ProviderNemotron Provider = "nemotron"
 	// ProviderCoreML Provider = "coreml" // For future use on macOS
 	ProviderMock Provider = "mock" // For testing purposes
 )

@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20260209194814-eeb2896ac759
 	github.com/codycollier/wer v0.0.0-20201114000249-55e36670fdc8
 	github.com/gordonklaus/portaudio v0.0.0-20260203164431-765aa7dfa631
-	github.com/k2-fsa/sherpa-onnx-go v1.12.22
+	github.com/k2-fsa/sherpa-onnx-go v1.12.24
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 )
