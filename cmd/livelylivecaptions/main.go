@@ -166,13 +166,37 @@ func main() {
     }
     defer selectedDevice.Close() // Ensure device is closed on exit
 
-	// Initialize Transcriber with hierarchical model loading
+	// Initialize Transcriber based on configuration
 	var tr *transcriber.Transcriber
 
-	logger.Info("Attempting to initialize transcriber with hierarchical model loading...")
-	logger.Info("Primary: Nemotron model, Fallback: Sherpa GPU, Final Fallback: Sherpa CPU")
-	
-	tr, err = transcriber.NewTranscriberWithFallback()
+	// Determine which model loading strategy to use based on config
+	if cfg.Model.Provider == "nemotron_only" || cfg.Model.Provider == "" {
+		// Default or explicit Nemotron mode: Nemotron primary with Sherpa fallbacks
+		logger.Info("Attempting to initialize with hierarchical model loading...")
+		logger.Info("Primary: Nemotron model, Fallback: Sherpa GPU, Final Fallback: Sherpa CPU")
+		
+		tr, err = transcriber.NewTranscriberWithFallback()
+	} else if cfg.Model.Provider == "sherpa_only" {
+		// Sherpa-only mode: Sherpa GPU primary with CPU fallback
+		logger.Info("Attempting to initialize with Sherpa-only model loading...")
+		logger.Info("Primary: Sherpa GPU model, Fallback: Sherpa CPU model")
+		
+		tr, err = transcriber.NewSherpaOnlyTranscriberWithFallback()
+	} else {
+		// Standard mode based on hardware detection
+		logger.Info("Attempting to initialize transcriber with %s provider...", provider)
+		tr, err = transcriber.NewTranscriber(provider)
+
+		// If initialization fails and the provider was CUDA, attempt to fall back to CPU
+		if err != nil && provider == hardware.ProviderCUDA {
+			logger.Warn("Failed to initialize transcriber with GPU. Attempting to fall back to CPU.")
+			logger.Debug("GPU initialization error: %v", err) // Log original error for debugging
+
+			provider = hardware.ProviderCPU // Switch to CPU
+			logger.Info("Attempting to initialize transcriber with %s provider...", provider)
+			tr, err = transcriber.NewTranscriber(provider)
+		}
+	}
 
 	// If there's still an error after all fallbacks, exit
 	if err != nil {

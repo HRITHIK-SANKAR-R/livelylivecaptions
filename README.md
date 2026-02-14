@@ -98,8 +98,28 @@ git clone https://huggingface.co/k2-fsa/sherpa-onnx-streaming-zipformer-en-2023-
 ## Building the Application
 
 #### Linux
-A helper script `build.sh` is provided. It sets the necessary CGO flags to link against the Sherpa-ONNX libraries.
+The application now supports two different build configurations:
 
+**Option 1: Nemotron-primary build (uses your custom model as primary)**
+```bash
+chmod +x build_nemotron_only.sh
+./build_nemotron_only.sh
+```
+This creates `livelylivecaptions-nemotron` with the following hierarchy:
+1. Nemotron model (primary)
+2. Sherpa GPU model (fallback)
+3. Sherpa CPU model (final fallback)
+
+**Option 2: Sherpa-only build (traditional Sherpa models)**
+```bash
+chmod +x build_sherpa_only.sh
+./build_sherpa_only.sh
+```
+This creates `livelylivecaptions-sherpa` with the following hierarchy:
+1. Sherpa GPU model (primary)
+2. Sherpa CPU model (fallback)
+
+**Legacy build (original behavior)**
 ```bash
 chmod +x build.sh
 ./build.sh
@@ -146,10 +166,16 @@ You can configure the application in three ways (from lowest to highest priority
 1.  **`config.yaml` file:** Create a `config.yaml` file in the root directory.
     ```yaml
     model:
-      provider: "cuda" # "cuda" or "cpu". Auto-detects if empty.
+      provider: "" # "", "nemotron_only", "sherpa_only", "cuda", or "cpu". Auto-detects if empty.
     audio:
       device_id: "default" # Name or ID of your audio device.
     ```
+    
+The `provider` field now accepts additional values:
+- `""` (empty) or `"nemotron_only"`: Use Nemotron model as primary with Sherpa fallbacks
+- `"sherpa_only"`: Use Sherpa models only (GPU primary, CPU fallback)
+- `"cuda"` or `"cpu"`: Traditional behavior with hardware-specific models
+
 2.  **Environment Variables:**
     ```bash
     # Linux

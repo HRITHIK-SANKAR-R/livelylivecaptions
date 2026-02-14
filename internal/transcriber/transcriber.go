@@ -69,6 +69,35 @@ func NewTranscriberWithFallback() (tr *Transcriber, err error) {
 	return tr, nil
 }
 
+// NewSherpaOnlyTranscriberWithFallback attempts to initialize the transcriber with Sherpa models only:
+// 1. Sherpa GPU model (primary for Sherpa-only)
+// 2. Sherpa CPU model (fallback for Sherpa-only)
+func NewSherpaOnlyTranscriberWithFallback() (tr *Transcriber, err error) {
+	logger.Info("Attempting to initialize with Sherpa GPU model (primary for Sherpa-only)...")
+
+	// Try Sherpa GPU model first
+	if hardware.DetectBestProvider() == hardware.ProviderCUDA {
+		tr, err = NewTranscriber(hardware.ProviderCUDA)
+		if err == nil {
+			logger.Info("Successfully initialized with Sherpa GPU model")
+			return tr, nil
+		}
+		
+		logger.Warn("Failed to initialize with Sherpa GPU model: %v", err)
+		logger.Info("Attempting to initialize with Sherpa CPU model (fallback for Sherpa-only)...")
+	}
+
+	// Fallback to CPU model
+	tr, err = NewTranscriber(hardware.ProviderCPU)
+	if err != nil {
+		logger.Error("Failed to initialize with Sherpa models: %v", err)
+		return nil, err
+	}
+
+	logger.Info("Successfully initialized with Sherpa CPU model")
+	return tr, nil
+}
+
 // NewNemotronTranscriber initializes the Sherpa-ONNX recognizer with the Nemotron model.
 func NewNemotronTranscriber() (tr *Transcriber, err error) {
 	// Defer a function to recover from panics, which can happen with CGO calls
