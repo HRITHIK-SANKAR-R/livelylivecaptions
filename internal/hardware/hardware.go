@@ -7,6 +7,7 @@ const (
 	ProviderCPU     Provider = "cpu"
 	ProviderCUDA    Provider = "cuda"
 	ProviderNemotron Provider = "nemotron"
+	ProviderSherpaJune2023 Provider = "sherpa_june_2023"  // For the 2023-06-26 model
 	// ProviderCoreML Provider = "coreml" // For future use on macOS
 	ProviderMock Provider = "mock" // For testing purposes
 )

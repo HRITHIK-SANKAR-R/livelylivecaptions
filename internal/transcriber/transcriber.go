@@ -70,31 +70,31 @@ func NewTranscriberWithFallback() (tr *Transcriber, err error) {
 }
 
 // NewSherpaOnlyTranscriberWithFallback attempts to initialize the transcriber with Sherpa models only:
-// 1. Sherpa GPU model (primary for Sherpa-only)
-// 2. Sherpa CPU model (fallback for Sherpa-only)
+// 1. Sherpa June 2023 GPU model (primary for Sherpa-only)
+// 2. Sherpa June 2023 CPU model (fallback for Sherpa-only)
 func NewSherpaOnlyTranscriberWithFallback() (tr *Transcriber, err error) {
-	logger.Info("Attempting to initialize with Sherpa GPU model (primary for Sherpa-only)...")
+	logger.Info("Attempting to initialize with Sherpa June 2023 GPU model (primary for Sherpa-only)...")
 
-	// Try Sherpa GPU model first
+	// Try Sherpa June 2023 model on GPU first
 	if hardware.DetectBestProvider() == hardware.ProviderCUDA {
-		tr, err = NewTranscriber(hardware.ProviderCUDA)
+		tr, err = NewTranscriberWithSpecificModel(hardware.ProviderSherpaJune2023, "cuda")
 		if err == nil {
-			logger.Info("Successfully initialized with Sherpa GPU model")
+			logger.Info("Successfully initialized with Sherpa June 2023 GPU model")
 			return tr, nil
 		}
 		
-		logger.Warn("Failed to initialize with Sherpa GPU model: %v", err)
-		logger.Info("Attempting to initialize with Sherpa CPU model (fallback for Sherpa-only)...")
+		logger.Warn("Failed to initialize with Sherpa June 2023 GPU model: %v", err)
+		logger.Info("Attempting to initialize with Sherpa June 2023 CPU model (fallback for Sherpa-only)...")
 	}
 
-	// Fallback to CPU model
-	tr, err = NewTranscriber(hardware.ProviderCPU)
+	// Fallback to Sherpa June 2023 model on CPU
+	tr, err = NewTranscriberWithSpecificModel(hardware.ProviderSherpaJune2023, "cpu")
 	if err != nil {
-		logger.Error("Failed to initialize with Sherpa models: %v", err)
+		logger.Error("Failed to initialize with Sherpa June 2023 models: %v", err)
 		return nil, err
 	}
 
-	logger.Info("Successfully initialized with Sherpa CPU model")
+	logger.Info("Successfully initialized with Sherpa June 2023 CPU model")
 	return tr, nil
 }
 
@@ -278,6 +278,64 @@ func (t *Transcriber) Start() {
 			}
 		}
 	}()
+}
+
+// NewTranscriberWithSpecificModel creates a transcriber with a specific model provider and hardware provider
+func NewTranscriberWithSpecificModel(modelProvider hardware.Provider, hardwareProvider string) (tr *Transcriber, err error) {
+	// Defer a function to recover from panics, which can happen with CGO calls
+	// if libraries are missing or there's a hardware mismatch.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic occurred during transcriber initialization with model provider '%s' and hardware provider '%s': %v", modelProvider, hardwareProvider, r)
+		}
+	}()
+
+	encoderPath, decoderPath, joinerPath, tokensPath := hardware.GetModelPaths(modelProvider)
+
+	// Configuration for the selected model
+	config := sherpa.OnlineRecognizerConfig{
+		FeatConfig: sherpa.FeatureConfig{
+			SampleRate: 16000,
+			FeatureDim: 80,
+		},
+		ModelConfig: sherpa.OnlineModelConfig{
+			Transducer: sherpa.OnlineTransducerModelConfig{
+				Encoder: encoderPath,
+				Decoder: decoderPath,
+				Joiner:  joinerPath,
+			},
+			Tokens:     tokensPath,
+			NumThreads: 1,
+			Provider:   hardwareProvider, // Use the specified hardware provider
+			Debug:      0,
+		},
+		DecodingMethod: "modified_beam_search",
+		MaxActivePaths: 4,
+		EnableEndpoint: 1, // Enable endpoint detection
+	}
+
+	recognizer := sherpa.NewOnlineRecognizer(&config)
+	if recognizer == nil {
+		// This path is taken if Sherpa-ONNX returns nil without panicking.
+		return nil, fmt.Errorf("failed to create recognizer with model provider %s and hardware provider %s (returned nil)", modelProvider, hardwareProvider)
+	}
+
+	stream := sherpa.NewOnlineStream(recognizer)
+	if stream == nil {
+		// If stream creation fails, we must clean up the successfully created recognizer.
+		sherpa.DeleteOnlineRecognizer(recognizer)
+		return nil, fmt.Errorf("failed to create stream")
+	}
+
+	logger.Debug("Sherpa-ONNX transcriber resources allocated for model provider: %s, hardware provider: %s", modelProvider, hardwareProvider)
+
+	return &Transcriber{
+		recognizer: recognizer,
+		stream:     stream,
+		InputChan:  make(chan []byte, 10), // Buffered to prevent blocking audio capture
+		OutputChan: make(chan types.TranscriptionEvent),
+		QuitChan:   make(chan struct{}),
+	}, nil
 }
 
 // Close releases resources and waits for the processing goroutine to finish.

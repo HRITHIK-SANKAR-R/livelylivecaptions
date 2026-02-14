@@ -106,18 +106,17 @@ chmod +x build_nemotron_only.sh
 ./build_nemotron_only.sh
 ```
 This creates `livelylivecaptions-nemotron` with the following hierarchy:
-1. Nemotron model (primary)
-2. Sherpa GPU model (fallback)
-3. Sherpa CPU model (final fallback)
+1. Nemotron model (primary) - located in `models/nemotron/`
+2. Sherpa June 2023 model (fallback) - located in `models/sherpa/`
 
-**Option 2: Sherpa-only build (traditional Sherpa models)**
+**Option 2: Sherpa-only build (using the preferred June 2023 model)**
 ```bash
 chmod +x build_sherpa_only.sh
 ./build_sherpa_only.sh
 ```
 This creates `livelylivecaptions-sherpa` with the following hierarchy:
-1. Sherpa GPU model (primary)
-2. Sherpa CPU model (fallback)
+1. Sherpa June 2023 model (primary) - located in `models/sherpa/`
+2. Sherpa June 2023 model (fallback) - same model used for both GPU and CPU
 
 **Legacy build (original behavior)**
 ```bash
