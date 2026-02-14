@@ -2,6 +2,12 @@
 
 LivelyLiveCaptions is a real-time, AI-powered speech-to-text application that displays live transcriptions from your microphone input directly in your terminal. It leverages the Sherpa-ONNX library for high-quality, streaming speech recognition.
 
+**Note**: This project has been tested and verified to work optimally on Arch Linux as of February 2026 with an RTX 3050 4GB GPU. Performance may vary on other systems.
+
+## Contributing
+
+Feel free to create issues if you want to suggest improvements or report problems. You can submit a pull request (PR) if you find any bugs or have updates to contribute to the project. Visit the Issues tab to see existing discussions or create a new one.
+
 ## Features
 
 - **Real-Time Transcription**: Captures audio from your microphone and provides a live feed of the transcribed text.
