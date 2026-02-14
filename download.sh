@@ -23,7 +23,8 @@ download_nemotron() {
     # Create the target directory if it doesn't exist
     mkdir -p "${local_dir}"
 
-    hf download "${repo_id}" encoder.onnx decoder.onnx joiner.onnx tokens.txt --local-dir "${local_dir}" --quiet
+    # Download all files from the repository into the specified local directory
+    hf download "${repo_id}" --local-dir "${local_dir}" 
 
     echo "Nemotron model files downloaded."
 }
