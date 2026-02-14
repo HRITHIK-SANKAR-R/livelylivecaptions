@@ -116,10 +116,7 @@ download_gpu_libs_windows() {
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     os_choice=1
     echo "Detected Linux operating system."
-elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    os_choice=2
-    echo "Detected Windows operating system (via MSYS/Cygwin)."
-elif [[ "$OSTYPE" == "win32" ]]; then
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == *"mingw"* ]]; then
     os_choice=2
     echo "Detected Windows operating system."
 else
