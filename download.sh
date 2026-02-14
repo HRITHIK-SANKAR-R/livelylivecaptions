@@ -112,11 +112,23 @@ download_gpu_libs_windows() {
     cd ../..
 }
 
-# Ask user for their OS
-echo "Select your operating system:"
-echo "1) Linux"
-echo "2) Windows"
-read -p "Enter choice (1 or 2): " os_choice
+# Detect the operating system automatically
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    os_choice=1
+    echo "Detected Linux operating system."
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    os_choice=2
+    echo "Detected Windows operating system (via MSYS/Cygwin)."
+elif [[ "$OSTYPE" == "win32" ]]; then
+    os_choice=2
+    echo "Detected Windows operating system."
+else
+    echo "Could not detect OS automatically. Detected: $OSTYPE"
+    echo "Select your operating system:"
+    echo "1) Linux"
+    echo "2) Windows"
+    read -p "Enter choice (1 or 2): " os_choice
+fi
 
 # Ask what model they want to download
 echo "Which model would you like to download?"
