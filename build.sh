@@ -10,10 +10,10 @@ echo "Building with GPU support linking against: $GPU_LIB_DIR"
 export CGO_LDFLAGS="-L$GPU_LIB_DIR -lsherpa-onnx-c-api -Wl,-rpath,$GPU_LIB_DIR"
 
 # Build the application
-go build -tags cuda -o livelylivecaptions cmd/livelylivecaptions/main.go
+go build -tags cuda -o LivelyLiveCaptions_Entire cmd/livelylivecaptions/main.go
 
 if [ $? -eq 0 ]; then
-    echo "✓ Build successful: ./livelylivecaptions"
+    echo "✓ Build successful: ./LivelyLiveCaptions_Entire"
 else
     echo "✗ Build failed"
     exit 1

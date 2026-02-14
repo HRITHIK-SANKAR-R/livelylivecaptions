@@ -10,10 +10,10 @@ echo "Building Nemotron-primary version with GPU support linking against: $GPU_L
 export CGO_LDFLAGS="-L$GPU_LIB_DIR -lsherpa-onnx-c-api -Wl,-rpath,$GPU_LIB_DIR"
 
 # Build the application with Nemotron as primary model
-go build -tags cuda -o livelylivecaptions-nemotron cmd/livelylivecaptions/main.go
+go build -tags cuda -o LivelyLiveCaptions_Nemotron cmd/livelylivecaptions/main.go
 
 if [ $? -eq 0 ]; then
-    echo "✓ Nemotron-primary build successful: ./livelylivecaptions-nemotron"
+    echo "✓ Nemotron-primary build successful: ./LivelyLiveCaptions_Nemotron"
 else
     echo "✗ Nemotron-primary build failed"
     exit 1

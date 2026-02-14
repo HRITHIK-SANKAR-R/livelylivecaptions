@@ -10,10 +10,10 @@ echo "Building Sherpa-only version with GPU support linking against: $GPU_LIB_DI
 export CGO_LDFLAGS="-L$GPU_LIB_DIR -lsherpa-onnx-c-api -Wl,-rpath,$GPU_LIB_DIR"
 
 # Build the application with Sherpa-only model selection
-go build -tags cuda -o livelylivecaptions-sherpa cmd/livelylivecaptions/main.go
+go build -tags cuda -o LivelyLiveCaptions_Sherpa cmd/livelylivecaptions/main.go
 
 if [ $? -eq 0 ]; then
-    echo "✓ Sherpa-only build successful: ./livelylivecaptions-sherpa"
+    echo "✓ Sherpa-only build successful: ./LivelyLiveCaptions_Sherpa"
 else
     echo "✗ Sherpa-only build failed"
     exit 1

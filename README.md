@@ -81,7 +81,7 @@ The application now supports two different build configurations:
 chmod +x build_nemotron.sh
 ./build_nemotron.sh
 ```
-This creates `livelylivecaptions-nemotron` with the following hierarchy:
+This creates `LivelyLiveCaptions_Nemotron` with the following hierarchy:
 1. Nemotron model (primary) - located in `models/nemotron/`
 2. Sherpa June 2023 model (fallback) - located in `models/sherpa/`
 
@@ -90,7 +90,7 @@ This creates `livelylivecaptions-nemotron` with the following hierarchy:
 chmod +x build_sherpa.sh
 ./build_sherpa.sh
 ```
-This creates `livelylivecaptions-sherpa` with the following hierarchy:
+This creates `LivelyLiveCaptions_Sherpa` with the following hierarchy:
 1. Sherpa June 2023 model (primary) - located in `models/sherpa/`
 2. Sherpa June 2023 model (fallback) - same model used for both GPU and CPU
 
@@ -99,6 +99,7 @@ This creates `livelylivecaptions-sherpa` with the following hierarchy:
 chmod +x build.sh
 ./build.sh
 ```
+This creates `LivelyLiveCaptions_Entire` with the original behavior.
 
 #### Windows
 You must run the `go build` command manually. For GPU support, you will need to set up the environment to correctly link the Sherpa-ONNX CUDA libraries, which can be complex.
