@@ -34,7 +34,7 @@ if [ $? -eq 0 ]; then
     echo "Running with enhanced LD_LIBRARY_PATH"
     # echo "Paths: $LD_PATHS"
     
-    ./LivelyLiveCaptions_Nemotron "$@"
+    ./LivelyLiveCaptions_Nemotron --model.provider="nemotron_only" "$@"
     # --- End of run.sh functionality ---
     echo ""
     echo "To explicitly control the model provider (e.g., force CPU or CUDA), use the --model.provider flag:"
