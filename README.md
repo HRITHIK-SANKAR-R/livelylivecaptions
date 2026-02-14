@@ -45,10 +45,9 @@ sudo pacman -S --noconfirm portaudio wget tar git
 ### 2. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/LivelyLiveCaptions.git
+git clone https://github.com/HRITHIK_SANKAR_R/LivelyLiveCaptions.git
 cd LivelyLiveCaptions
 ```
-*(Replace `your-username` with the actual repository path)*
 
 ### 3. Download Transcription Models
 
