@@ -3,6 +3,7 @@
 # Get the absolute path to the project directory
 PROJECT_DIR=$(pwd)
 GPU_LIB_DIR="$PROJECT_DIR/models/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/lib"
+VENV_LIB_DIR="/home/hrithik/Desktop/.venv/lib/python3.11/site-packages/nvidia"
 
 echo "Building Nemotron-primary version with GPU support linking against: $GPU_LIB_DIR"
 
@@ -14,6 +15,32 @@ go build -tags cuda -o LivelyLiveCaptions_Nemotron cmd/livelylivecaptions/main.g
 
 if [ $? -eq 0 ]; then
     echo "✓ Nemotron-primary build successful: ./LivelyLiveCaptions_Nemotron"
+
+    # --- Start of run.sh functionality ---
+    # Construct LD_LIBRARY_PATH
+    LD_PATHS="$GPU_LIB_DIR"
+
+    # Add all nvidia library paths from the venv if they exist
+    if [ -d "$VENV_LIB_DIR" ]; then
+        for dir in "$VENV_LIB_DIR"/*/lib; do
+            if [ -d "$dir" ]; then
+                LD_PATHS="$LD_PATHS:$dir"
+            fi
+        done
+    fi
+
+    export LD_LIBRARY_PATH="$LD_PATHS:$LD_LIBRARY_PATH"
+
+    echo "Running with enhanced LD_LIBRARY_PATH"
+    # echo "Paths: $LD_PATHS"
+    
+    ./LivelyLiveCaptions_Nemotron "$@"
+    # --- End of run.sh functionality ---
+    echo ""
+    echo "To explicitly control the model provider (e.g., force CPU or CUDA), use the --model.provider flag:"
+    echo "  - To try forcing CUDA: ./LivelyLiveCaptions_Nemotron --model.provider=\"cuda\""
+    echo "  - To force CPU:       ./LivelyLiveCaptions_Nemotron --model.provider=\"cpu\""
+    echo "If you expect GPU to work but it's falling back to CPU, ensure 'nvidia-smi' runs correctly in your environment and your CUDA/cuDNN installations are compatible."
 else
     echo "✗ Nemotron-primary build failed"
     exit 1
