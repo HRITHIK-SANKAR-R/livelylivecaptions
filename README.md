@@ -45,7 +45,7 @@ sudo pacman -S --noconfirm portaudio wget tar git
 ### 2. Clone Repository
 
 ```bash
-git clone https://github.com/HRITHIK_SANKAR_R/LivelyLiveCaptions.git
+git clone https://github.com/HRITHIK-SANKAR-R/LivelyLiveCaptions.git
 cd LivelyLiveCaptions
 ```
 
