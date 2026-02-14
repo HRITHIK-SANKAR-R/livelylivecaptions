@@ -46,52 +46,28 @@ cd LivelyLiveCaptions
 
 ### 3. Download Transcription Models
 
-The application requires different models for CPU and GPU processing. The following directory structure must be created:
+The application requires models for processing. We recommend using our automated download script to get all necessary models and libraries:
+
+```bash
+chmod +x download.sh
+./download.sh
+```
+
+The script will guide you through the download process for your operating system and model preferences. The GPU libraries are required for optimal performance and will always be downloaded.
+
+#### Manual Setup (Alternative)
+
+If you prefer to set up models manually, the following directory structure is used:
 
 ```
 LivelyLiveCaptions/
-└── models/
-    ├── cpu/
-    │   └── sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/
-    │       ├── ... model files ...
-    └── gpu/
-        └── sherpa-onnx-streaming-zipformer-en-2023-06-26/
-            ├── ... model files ...
+├── models/
+│   ├── nemotron/          # Nemotron model files
+│   ├── sherpa/            # Sherpa June 2023 model files  
+│   └── sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/  # GPU libraries (required)
 ```
 
-Create these directories:
-```bash
-mkdir -p models/cpu models/gpu
-```
-
-#### CPU Model
-
-Download and extract the CPU model into the `models/cpu/` directory.
-
-```bash
-# Enter the cpu model directory
-cd models/cpu
-
-# Download the model
-wget https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2
-
-# Extract the model
-tar -xvf sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2
-
-# Clean up the archive
-rm sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2
-
-# Go back to the project root
-cd ../..
-```
-
-#### GPU Model (Optional)
-
-For GPU support, download the streaming zipformer model. You can download it manually from the [Hugging Face repository](https://huggingface.co/k2-fsa/sherpa-onnx-streaming-zipformer-en-2023-06-26/tree/main) or use `git` to clone it directly into the correct directory.
-
-```bash
-git clone https://huggingface.co/k2-fsa/sherpa-onnx-streaming-zipformer-en-2023-06-26 models/gpu/sherpa-onnx-streaming-zipformer-en-2023-06-26
-```
+The automated script handles all necessary downloads and extraction for you.
 
 ---
 
@@ -102,8 +78,8 @@ The application now supports two different build configurations:
 
 **Option 1: Nemotron-primary build (uses your custom model as primary)**
 ```bash
-chmod +x build_nemotron_only.sh
-./build_nemotron_only.sh
+chmod +x build_nemotron.sh
+./build_nemotron.sh
 ```
 This creates `livelylivecaptions-nemotron` with the following hierarchy:
 1. Nemotron model (primary) - located in `models/nemotron/`
@@ -111,8 +87,8 @@ This creates `livelylivecaptions-nemotron` with the following hierarchy:
 
 **Option 2: Sherpa-only build (using the preferred June 2023 model)**
 ```bash
-chmod +x build_sherpa_only.sh
-./build_sherpa_only.sh
+chmod +x build_sherpa.sh
+./build_sherpa.sh
 ```
 This creates `livelylivecaptions-sherpa` with the following hierarchy:
 1. Sherpa June 2023 model (primary) - located in `models/sherpa/`
