@@ -59,7 +59,7 @@ func NewTranscriber(p hardware.Provider) (tr *Transcriber, err error) {
 			Provider:   string(p),
 			Debug:      0,
 		},
-		DecodingMethod: "greedy_search",
+		DecodingMethod: "modified_beam_search",
 		MaxActivePaths: 4,
 		EnableEndpoint: 1, // Enable endpoint detection
 	}
