@@ -170,11 +170,14 @@ func main() {
 	var tr *transcriber.Transcriber
 
 	// Determine which model loading strategy to use based on config
-	if cfg.Model.Provider == "nemotron_only" || cfg.Model.Provider == "" {
-		// Default or explicit Nemotron mode: Nemotron primary with Sherpa fallbacks
-		logger.Info("Attempting to initialize with hierarchical model loading...")
-		logger.Info("Primary: Nemotron model, Fallback: Sherpa GPU, Final Fallback: Sherpa CPU")
-		
+	if cfg.Model.Provider == "nemotron_only" {
+		logger.Info("Attempting to initialize with Nemotron-only hierarchical model loading (CUDA -> CPU)...")
+		logger.Info("Primary: Nemotron CUDA, Fallback: Nemotron CPU")
+		tr, err = transcriber.NewNemotronOnlyTranscriberWithFallback()
+	} else if cfg.Model.Provider == "" {
+		// Auto-detect mode: Nemotron primary with comprehensive fallbacks
+		logger.Info("Attempting to initialize with comprehensive hierarchical model loading (Nemotron CUDA -> Nemotron CPU -> Sherpa GPU -> Sherpa CPU)...")
+		logger.Info("Primary: Nemotron CUDA, Fallback: Nemotron CPU, Secondary Fallback: Sherpa GPU, Final Fallback: Sherpa CPU")
 		tr, err = transcriber.NewTranscriberWithFallback()
 	} else if cfg.Model.Provider == "sherpa_only" {
 		// Sherpa-only mode: Sherpa GPU primary with CPU fallback
