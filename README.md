@@ -22,34 +22,50 @@ Feel free to create issues if you want to suggest improvements or report problem
 
 ## Project Setup
 
-### 1. Dependencies
+### 1. Core Dependencies
 
-First, ensure you have the necessary dependencies for your operating system.
+First, ensure you have the necessary core dependencies for your operating system.
 
 #### Linux (Debian/Ubuntu)
 ```bash
 sudo apt-get update
-sudo apt-get install -y portaudio19-dev wget tar git python3-pip
-pip install hf
+sudo apt-get install -y portaudio19-dev wget tar git
 ```
 
 #### Linux (Arch)
 ```bash
 sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm portaudio wget tar git python3-pip
-pip install hf
+sudo pacman -S --noconfirm portaudio wget tar git
 ```
 
 #### Windows
 - **Go**: Install Go for Windows from the [official website](https://golang.org/dl/).
 - **Git**: Install Git for Windows from the [official website](https://git-scm.com/download/win). A shell environment like Git Bash is recommended.
-- **Python & pip**: Install Python for Windows from the [official website](https://www.python.org/downloads/windows/). Ensure pip is available.
-- **hf CLI**: Install the `hf` Python package to get the `hf` CLI functionality:
-  ```bash
-  pip install hf
-  ```
 - **PortAudio**: There is no official package manager for PortAudio on Windows. The `go get` process may handle this, but manual setup might be required if you encounter errors.
 - **NVIDIA GPU Drivers & CUDA**: Ensure you have the latest NVIDIA drivers and the CUDA Toolkit installed if you plan to use GPU acceleration.
+
+---
+
+### 1.1. Model Download Dependencies (Optional)
+
+If you plan to use the `download.sh` script to fetch models, you will need the `hf` command-line interface (CLI) tool. This tool requires Python and pip.
+
+#### Linux
+```bash
+sudo apt-get install -y python3-pip  # For Debian/Ubuntu
+# or
+sudo pacman -S --noconfirm python-pip # For Arch
+pip install hf
+```
+
+#### Windows
+- Install Python for Windows from the [official website](https://www.python.org/downloads/windows/). Ensure pip is available.
+- Then, install the `hf` CLI:
+  ```
+  pip install hf
+  ```
+
+---
 
 ### 2. Clone Repository
 
@@ -72,49 +88,60 @@ The script will guide you through the download process for your operating system
 
 #### Manual Setup (Alternative)
 
-If you prefer to set up models manually, the following directory structure is used:
+If you prefer to set up models manually, follow these steps:
 
-```
-LivelyLiveCaptions/
-├── models/
-│   ├── nemotron/          # Nemotron model files
-│   ├── sherpa/            # Sherpa June 2023 model files  
-│   └── sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/  # GPU libraries (required)
-```
+1.  **Create the necessary directory structure:**
+    ```
+    LivelyLiveCaptions/
+    ├── models/
+    │   ├── nemotron/
+    │   ├── sherpa/
+    │   └── sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/
+    ```
 
-The automated script handles all necessary downloads and extraction for you.
+2.  **Download Nemotron model files:**
+    *   Download the entire repository from [https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14](https://huggingface.co/csukuangfj/sherpa-onnx-nemotron-speech-streaming-en-0.6b-2026-01-14)
+    *   Place all contents directly into the `models/nemotron/` directory.
+
+3.  **Download Sherpa June 2023 model files:**
+    *   Download the archive: [https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2)
+    *   Extract the contents. From the extracted directory (e.g., `sherpa-onnx-streaming-zipformer-en-2023-06-26/`), copy the following files into the `models/sherpa/` directory:
+        *   `encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx`
+        *   `decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx`
+        *   `joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx`
+        *   `tokens.txt`
+        *   (Optional: `encoder-epoch-99-avg-1-chunk-16-left-128.onnx`, `decoder-epoch-99-avg-1-chunk-16-left-128.onnx`, `joiner-epoch-99-avg-1-chunk-16-left-128.onnx` if you prefer non-INT8 models)
+
+4.  **Download GPU Libraries:**
+    *   **For Linux:**
+        *   Download the archive: [https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.24/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu.tar.bz2](https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.24/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu.tar.bz2)
+        *   Extract its contents directly into the `models/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/` directory.
+    *   **For Windows:**
+        *   Download the archive: [https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.24/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-win-x64-cuda.tar.bz2](https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.24/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-win-x64-cuda.tar.bz2)
+        *   Extract its contents directly into the `models/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/` directory. (Note: The target directory name is Linux-specific, but it should contain the Windows binaries).
+
+Remember that using the `./download.sh` script is highly recommended for a simpler and faster setup.
 
 ---
 
-## Building the Application
+## Building and Running the Application
 
 #### Linux
-The application now supports two different build configurations:
+The application provides convenience scripts that both build and run the application with specific model configurations:
 
-**Option 1: Nemotron-primary build (uses your custom model as primary)**
+**Option 1: Nemotron-primary model (build and run)**
+This option builds `LivelyLiveCaptions_Nemotron` (using your custom Nemotron model as primary) and then runs it.
 ```bash
-chmod +x build_nemotron.sh
-./build_nemotron.sh
+chmod +x nemotron.sh
+./nemotron.sh
 ```
-This creates `LivelyLiveCaptions_Nemotron` with the following hierarchy:
-1. Nemotron model (primary) - located in `models/nemotron/`
-2. Sherpa June 2023 model (fallback) - located in `models/sherpa/`
 
-**Option 2: Sherpa-only build (using the preferred June 2023 model)**
+**Option 2: Sherpa-only model (build and run)**
+This option builds `LivelyLiveCaptions_Sherpa` (using the preferred Sherpa June 2023 model) and then runs it.
 ```bash
-chmod +x build_sherpa.sh
-./build_sherpa.sh
+chmod +x sherpa.sh
+./sherpa.sh
 ```
-This creates `LivelyLiveCaptions_Sherpa` with the following hierarchy:
-1. Sherpa June 2023 model (primary) - located in `models/sherpa/`
-2. Sherpa June 2023 model (fallback) - same model used for both GPU and CPU
-
-**Legacy build (original behavior)**
-```bash
-chmod +x build.sh
-./build.sh
-```
-This creates `LivelyLiveCaptions_Entire` with the original behavior.
 
 #### Windows
 You must run the `go build` command manually. For GPU support, you will need to set up the environment to correctly link the Sherpa-ONNX CUDA libraries, which can be complex.
@@ -127,28 +154,7 @@ go build -o livelylivecaptions.exe cmd/livelylivecaptions/main.go
 **GPU Build (Windows - Advanced):**
 Building with CUDA on Windows requires manually setting paths to the Sherpa-ONNX GPU libraries. For a simpler build experience with GPU support, using **Windows Subsystem for Linux (WSL)** is highly recommended.
 
----
 
-## Running the Application
-
-#### Linux
-It is **crucial** to use the `run.sh` script to start the application. This script sets the `LD_LIBRARY_PATH` so the program can find the required GPU libraries.
-
-```bash
-chmod +x run.sh
-./run.sh
-```
-
-#### Windows
-You must set the `PATH` environment variable to include the directory containing the required `.dll` files from the Sherpa-ONNX Windows package.
-
-```powershell
-# Example: Assuming the required DLLs are in a 'lib' folder
-$env:PATH = "C:\\path\\to\\sherpa-onnx-libs;" + $env:PATH
-./livelylivecaptions.exe
-```
-
-Upon first run, you will be prompted to select an audio input device from a list.
 
 ## Configuration
 

@@ -3,7 +3,6 @@
 # Get the absolute path to the project directory
 PROJECT_DIR=$(pwd)
 GPU_LIB_DIR="$PROJECT_DIR/models/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/lib"
-VENV_LIB_DIR="/home/hrithik/Desktop/.venv/lib/python3.11/site-packages/nvidia"
 
 echo "Building Nemotron-primary version with GPU support linking against: $GPU_LIB_DIR"
 
@@ -17,21 +16,10 @@ if [ $? -eq 0 ]; then
     echo "✓ Nemotron-primary build successful: ./LivelyLiveCaptions_Nemotron"
 
     # --- Start of run.sh functionality ---
-    # Construct LD_LIBRARY_PATH
-    LD_PATHS="$GPU_LIB_DIR"
+    # Construct and export LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH="$GPU_LIB_DIR:$LD_LIBRARY_PATH"
 
-    # Add all nvidia library paths from the venv if they exist
-    if [ -d "$VENV_LIB_DIR" ]; then
-        for dir in "$VENV_LIB_DIR"/*/lib; do
-            if [ -d "$dir" ]; then
-                LD_PATHS="$LD_PATHS:$dir"
-            fi
-        done
-    fi
-
-    export LD_LIBRARY_PATH="$LD_PATHS:$LD_LIBRARY_PATH"
-
-    echo "Running with enhanced LD_LIBRARY_PATH"
+    echo "Running with LD_LIBRARY_PATH set"
     # echo "Paths: $LD_PATHS"
     
     ./LivelyLiveCaptions_Nemotron --model.provider="nemotron_only" "$@"
