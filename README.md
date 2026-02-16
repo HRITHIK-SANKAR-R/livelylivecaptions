@@ -215,9 +215,10 @@ The `provider` field now accepts additional values:
     ```
 
 ---
-
+**Image of how devices are shown**     
 <!-- Image of how devices are shown -->
 ![Device Selection](./devices.jpeg)
 
+**Example transcription with the model**
 <!-- Example transcription with the model -->
 ![Example Transcription](./example.jpeg)
