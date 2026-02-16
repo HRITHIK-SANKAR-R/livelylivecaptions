@@ -46,24 +46,46 @@ sudo pacman -S --noconfirm portaudio wget tar git
 
 ---
 
-### 1.1. Model Download Dependencies (Optional)
+### 1.1. Python Environment for CUDA Libraries and Model Downloads (Optional)
 
-If you plan to use the `download.sh` script to fetch models, you will need the `hf` command-line interface (CLI) tool. This tool requires Python and pip.
+If you intend to use GPU acceleration or the `download.sh` script, it is highly recommended to set up a Python virtual environment to manage CUDA library dependencies and the `hf` CLI tool. This provides a self-contained environment for the necessary Python components.
 
-#### Linux
-```bash
-sudo apt-get install -y python3-pip  # For Debian/Ubuntu
-# or
-sudo pacman -S --noconfirm python-pip # For Arch
-pip install hf
-```
+#### Setup Steps:
 
-#### Windows
-- Install Python for Windows from the [official website](https://www.python.org/downloads/windows/). Ensure pip is available.
-- Then, install the `hf` CLI:
-  ```
-  pip install hf
-  ```
+1.  **Ensure Python and pip are installed:**
+    *   **Linux (Debian/Ubuntu):**
+        ```bash
+        sudo apt-get update
+        sudo apt-get install -y python3-venv python3-pip
+        ```
+    *   **Linux (Arch):**
+        ```bash
+        sudo pacman -Syu --noconfirm
+        sudo pacman -S --noconfirm python python-pip
+        ```
+    *   **Windows:** Install Python from the [official website](https://www.python.org/downloads/windows/). Ensure "Add Python to PATH" is checked during installation.
+
+2.  **Create and activate a Python virtual environment:**
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate # On Windows, use .venv\Scripts\activate
+    ```
+    *Note: The scripts (`nemotron.sh`, `sherpa.sh`) expect the virtual environment to be named `.venv` and located in the project root.*
+
+    *   **Using an Existing Virtual Environment:** If you already have a virtual environment with CUDA-providing Python packages installed (e.g., `torch`, `tensorflow-gpu`), you can activate it instead of creating a new one. However, ensure that the CUDA version provided by your existing venv (e.g., CUDA 12.x) is compatible with the Sherpa-ONNX binaries used by this project.
+
+3.  **Install CUDA-providing Python packages and the `hf` CLI:**
+    ```bash
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 # For CUDA 12.1 (adjust as needed for your GPU/CUDA version)
+    pip install hf
+    ```
+    *   **Important:** The `torch` package (or `tensorflow-gpu`) bundles the necessary CUDA libraries (like `libcublasLt.so.12`) that your Go application relies on. Ensure you install the version compatible with your NVIDIA GPU and the `cuda-12.x` binaries used by Sherpa-ONNX. You can find specific installation commands for PyTorch at [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/).
+    *   The `hf` CLI is used by `download.sh` to fetch models from Hugging Face.
+
+4.  **Deactivate the virtual environment when done with setup:**
+    ```bash
+    deactivate
+    ```
 
 ---
 
