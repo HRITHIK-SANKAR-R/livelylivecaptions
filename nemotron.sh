@@ -4,7 +4,7 @@
 PROJECT_DIR=$(pwd)
 GPU_LIB_DIR="$PROJECT_DIR/models/sherpa-onnx-v1.12.24-cuda-12.x-cudnn-9.x-linux-x64-gpu/lib"
 # Define the Python virtual environment's NVIDIA library directory
-VENV_LIB_DIR="$PROJECT_DIR/.venv/lib/python3.11/site-packages/nvidia" # Adjust python version if needed
+VENV_LIB_DIR="$PROJECT_DIR/.venv/lib/python3.12/site-packages/nvidia" # Adjust python version if needed
 
 echo "Building Nemotron-primary version with GPU support linking against: $GPU_LIB_DIR"
 
