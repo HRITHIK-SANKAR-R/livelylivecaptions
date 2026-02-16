@@ -28,13 +28,13 @@ func GetModelPaths(p Provider) (encoder, decoder, joiner, tokens string) {
 
 	switch p {
 	case ProviderCPU:
-		modelDir := filepath.Join(projectRoot, "models", "cpu", "sherpa-onnx-streaming-zipformer-en-20M-2023-02-17")
-		encoder = filepath.Join(modelDir, "encoder-epoch-99-avg-1.int8.onnx")
-		decoder = filepath.Join(modelDir, "decoder-epoch-99-avg-1.int8.onnx")
-		joiner = filepath.Join(modelDir, "joiner-epoch-99-avg-1.int8.onnx")
+		modelDir := filepath.Join(projectRoot, "models", "sherpa")
+		encoder = filepath.Join(modelDir, "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
+		decoder = filepath.Join(modelDir, "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
+		joiner = filepath.Join(modelDir, "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
 		tokens = filepath.Join(modelDir, "tokens.txt")
 	case ProviderCUDA:
-		modelDir := filepath.Join(projectRoot, "models", "gpu", "sherpa-onnx-streaming-zipformer-en-2023-06-26")
+		modelDir := filepath.Join(projectRoot, "models", "sherpa")
 		encoder = filepath.Join(modelDir, "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
 		decoder = filepath.Join(modelDir, "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
 		joiner = filepath.Join(modelDir, "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
@@ -48,9 +48,9 @@ func GetModelPaths(p Provider) (encoder, decoder, joiner, tokens string) {
 	case ProviderSherpaJune2023:
 		// Use the June 2023 model from the unified location
 		modelDir := filepath.Join(projectRoot, "models", "sherpa")
-		encoder = filepath.Join(modelDir, "encoder-epoch-99-avg-1-chunk-16-left-128.onnx")
-		decoder = filepath.Join(modelDir, "decoder-epoch-99-avg-1-chunk-16-left-128.onnx")
-		joiner = filepath.Join(modelDir, "joiner-epoch-99-avg-1-chunk-16-left-128.onnx")
+		encoder = filepath.Join(modelDir, "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
+		decoder = filepath.Join(modelDir, "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
+		joiner = filepath.Join(modelDir, "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx")
 		tokens = filepath.Join(modelDir, "tokens.txt")
 	default:
 		panic(fmt.Sprintf("unsupported provider: %s", p))
