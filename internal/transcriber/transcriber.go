@@ -30,23 +30,34 @@ type Transcriber struct {
 }
 
 // NewTranscriberWithFallback attempts to initialize the transcriber with a hierarchy of models:
-// 1. Nemotron model (primary)
-// 2. Sherpa GPU model (fallback)
-// 3. Sherpa CPU model (final fallback)
+// 1. Nemotron CUDA model (primary)
+// 2. Nemotron CPU model (fallback)
+// 3. Sherpa GPU model (fallback)
+// 4. Sherpa CPU model (final fallback)
 func NewTranscriberWithFallback() (tr *Transcriber, err error) {
-	logger.Info("Attempting to initialize with Nemotron model (primary)...")
+	logger.Info("Attempting to initialize with Nemotron CUDA model (primary)...")
 
-	// Try Nemotron model first
-	tr, err = NewNemotronTranscriber()
+	// Try Nemotron CUDA model first
+	tr, err = NewNemotronTranscriberWithProvider(hardware.ProviderCUDA)
 	if err == nil {
-		logger.Info("Successfully initialized with Nemotron model")
+		logger.Info("Successfully initialized with Nemotron CUDA model")
 		return tr, nil
 	}
 
-	logger.Warn("Failed to initialize with Nemotron model: %v", err)
+	logger.Warn("Failed to initialize with Nemotron CUDA model: %v", err)
+	logger.Info("Attempting to initialize with Nemotron CPU model (fallback)...")
+
+	// Fallback to Nemotron CPU model
+	tr, err = NewNemotronTranscriberWithProvider(hardware.ProviderCPU)
+	if err == nil {
+		logger.Info("Successfully initialized with Nemotron CPU model")
+		return tr, nil
+	}
+
+	logger.Warn("Failed to initialize with Nemotron CPU model: %v", err)
 	logger.Info("Attempting to initialize with Sherpa GPU model (fallback)...")
 
-	// Fallback to GPU model
+	// Fallback to Sherpa GPU model
 	if hardware.DetectBestProvider() == hardware.ProviderCUDA {
 		tr, err = NewTranscriber(hardware.ProviderCUDA)
 		if err == nil {
@@ -68,6 +79,35 @@ func NewTranscriberWithFallback() (tr *Transcriber, err error) {
 	logger.Info("Successfully initialized with Sherpa CPU model")
 	return tr, nil
 }
+
+// NewNemotronOnlyTranscriberWithFallback attempts to initialize the transcriber with Nemotron models only:
+// 1. Nemotron CUDA model (primary)
+// 2. Nemotron CPU model (fallback)
+// If both fail, it returns an error.
+func NewNemotronOnlyTranscriberWithFallback() (tr *Transcriber, err error) {
+	logger.Info("Attempting to initialize with Nemotron CUDA model (primary)...")
+
+	// Try Nemotron CUDA model first
+	tr, err = NewNemotronTranscriberWithProvider(hardware.ProviderCUDA)
+	if err == nil {
+		logger.Info("Successfully initialized with Nemotron CUDA model")
+		return tr, nil
+	}
+
+	logger.Warn("Failed to initialize with Nemotron CUDA model: %v", err)
+	logger.Info("Attempting to initialize with Nemotron CPU model (fallback)...")
+
+	// Fallback to Nemotron CPU model
+	tr, err = NewNemotronTranscriberWithProvider(hardware.ProviderCPU)
+	if err == nil {
+		logger.Info("Successfully initialized with Nemotron CPU model")
+		return tr, nil
+	}
+
+	logger.Warn("Failed to initialize with Nemotron CPU model: %v", err)
+	return nil, fmt.Errorf("failed to initialize with Nemotron CUDA or Nemotron CPU models")
+}
+
 
 // NewSherpaOnlyTranscriberWithFallback attempts to initialize the transcriber with Sherpa models only:
 // 1. Sherpa June 2023 GPU model (primary for Sherpa-only)
@@ -98,13 +138,13 @@ func NewSherpaOnlyTranscriberWithFallback() (tr *Transcriber, err error) {
 	return tr, nil
 }
 
-// NewNemotronTranscriber initializes the Sherpa-ONNX recognizer with the Nemotron model.
-func NewNemotronTranscriber() (tr *Transcriber, err error) {
+// NewNemotronTranscriberWithProvider initializes the Sherpa-ONNX recognizer with the Nemotron model.
+func NewNemotronTranscriberWithProvider(p hardware.Provider) (tr *Transcriber, err error) {
 	// Defer a function to recover from panics, which can happen with CGO calls
 	// if libraries are missing or there's a hardware mismatch.
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic occurred during Nemotron model initialization: %v", r)
+			err = fmt.Errorf("panic occurred during Nemotron model initialization with provider '%s': %v", p, r)
 		}
 	}()
 
@@ -124,7 +164,7 @@ func NewNemotronTranscriber() (tr *Transcriber, err error) {
 			},
 			Tokens:     tokensPath,
 			NumThreads: 1,
-			Provider:   "cuda", // Use CUDA for GPU acceleration
+			Provider:   string(p), // Use the specified provider
 			Debug:      0,
 		},
 		DecodingMethod: "greedy_search", // Use greedy search for better performance
