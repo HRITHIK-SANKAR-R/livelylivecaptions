@@ -46,9 +46,13 @@ sudo pacman -S --noconfirm portaudio wget tar git
 
 ---
 
-### 1.1. Python Environment for CUDA Libraries and Model Downloads (Optional)
+### 1.1. Python Environment Setup (for GPU Acceleration & Model Downloads)
 
-If you intend to use GPU acceleration or the `download.sh` script, it is highly recommended to set up a Python virtual environment to manage CUDA library dependencies and the `hf` CLI tool. This provides a self-contained environment for the necessary Python components.
+A Python virtual environment is crucial for this project. It is used to:
+-   Manage Python dependencies for GPU acceleration (e.g., PyTorch with CUDA).
+-   Provide the `hf` CLI tool, which is required by `download.sh` for model downloads.
+
+**It is essential to create and activate this virtual environment before proceeding with dependency installations and running scripts.** The project scripts (`nemotron.sh`, `sherpa.sh`) expect the virtual environment to be named `.venv` and located in the project root.
 
 #### Setup Steps:
 
