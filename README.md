@@ -213,3 +213,11 @@ The `provider` field now accepts additional values:
     # Windows
     ./livelylivecaptions.exe --model.provider="cpu"
     ```
+
+---
+
+<!-- Image of how devices are shown -->
+![Device Selection](./devices.jpeg)
+
+<!-- Example transcription with the model -->
+![Example Transcription](./example.jpeg)
